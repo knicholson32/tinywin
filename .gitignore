@@ -1,0 +1,6 @@
+**/__pycache__
+.vscode
+.gdb_history
+device_data.json
+*.txt
+/logs

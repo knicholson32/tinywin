@@ -1,0 +1,12 @@
+board_manager:
+  additional_urls: [https://adafruit.github.io/arduino-board-index/package_adafruit_index.json]
+daemon:
+  port: "50051"
+directories:
+  data: /Users/keenannicholson/Library/Arduino15
+  downloads: /Users/keenannicholson/Library/Arduino15/staging
+  user: "/Volumes/Storage\ HD/Projects/Arduino"
+logging:
+  file: ""
+  format: json
+  level: info
