@@ -13,7 +13,8 @@ class InputEvent(object):
                 self._id, self._mx, self._my, self._z, self._bstate = curses.getmouse()
                 self._mouse_event = True
             except curses.error as e:
-                pass
+                # We can't use this mouse event, so absorb it
+                self.absorb()
 
     def get_mouse(self):
         if self._mouse_event:
@@ -408,21 +409,21 @@ class Screen(object):
             elif isinstance(pane_obj, core.Processable):
                 self.processable_objects.append(pane_obj)
 
-        with open("Output.txt", "w") as text_file:
-            print('-:  ', end='', file=text_file)
-            for j in range(0, len(self._screen_builder._pane_order[0])):
-                print(f'{j} '.ljust(4, ' '), end='', file=text_file)
-            print('', file=text_file)
-            for i in range(0, len(self._screen_builder._pane_order)):
-                print(f'{i}: '.ljust(4, ' '),end='', file=text_file)
-                for j in range(0, len(self._screen_builder._pane_order[0])):
-                    p = self._screen_builder._pane_order[i][j]
-                    if p is None:
-                        print(f'0   ', end='', file=text_file)
-                    else:
-                        print(f'{str(p)}   ', end='', file=text_file)
-                print('', file=text_file)
-            print(f'{(self._screen_builder._pane_order_x_len, self._screen_builder._pane_order_y_len)}', file=text_file)
+        # with open("Output.txt", "w") as text_file:
+        #     print('-:  ', end='', file=text_file)
+        #     for j in range(0, len(self._screen_builder._pane_order[0])):
+        #         print(f'{j} '.ljust(4, ' '), end='', file=text_file)
+        #     print('', file=text_file)
+        #     for i in range(0, len(self._screen_builder._pane_order)):
+        #         print(f'{i}: '.ljust(4, ' '),end='', file=text_file)
+        #         for j in range(0, len(self._screen_builder._pane_order[0])):
+        #             p = self._screen_builder._pane_order[i][j]
+        #             if p is None:
+        #                 print(f'0   ', end='', file=text_file)
+        #             else:
+        #                 print(f'{str(p)}   ', end='', file=text_file)
+        #         print('', file=text_file)
+        #     print(f'{(self._screen_builder._pane_order_x_len, self._screen_builder._pane_order_y_len)}', file=text_file)
 
 
         # matrix = self._screen_builder._pane_order
@@ -490,7 +491,7 @@ class Screen(object):
         #TODO: Try using get_wch to see if we can capture more complex key inputs
         #TODO: Support mouse scrolling
         c = self._stdscr.getch()
-        #  try:
+        # try:
             # c = self._stdscr.get_wch()
         # except curses.error:
             # c = None
