@@ -4,3 +4,6 @@
 device_data.json
 *.txt
 /logs
+/build
+/dist
+*.egg-info
