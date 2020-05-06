@@ -249,6 +249,7 @@ class Text_Wrapper(object):
 class Text_Line(object):
     def __init__(self, *args, data=None, ellipsis_color=None, ellipsis_text='...', allowed_width=None):
         self.data = data
+        self._has_been_shortened = False
         if self.data is None:
             self.data = dict()
         if ellipsis_color is None:
@@ -324,6 +325,7 @@ class Text_Line(object):
                 counter = counter + len(t)
         return counter
 
+    # TODO: Make the add return a new Text_Line with colors perserved
     def __add__(self, o):
         return self.__str__() + o
 
@@ -347,8 +349,12 @@ class Text_Line(object):
         for t in self._shortened_text_objects:
             t.color = color
 
+    def get_has_been_shortened(self):
+        return self._has_been_shortened
+
     def shorten_to_length(self, length):
         self._allowed_width = length
+        self._has_been_shortened = True
         tmp_shortened_text_objects = []
         for t in self._text_objects:
             tmp_shortened_text_objects.append(t.copy())

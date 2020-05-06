@@ -488,6 +488,10 @@ class Screen(object):
 
 
         c = self._stdscr.getch()
+        #  try:
+            # c = self._stdscr.get_wch()
+        # except curses.error:
+            # c = None
         self._ie = InputEvent(c)
         if c != -1:
             curses.flushinp()

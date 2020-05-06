@@ -21,17 +21,30 @@ class Test_Pane(panes.Scroll_Pane):
 
 
 class Test_Pane2(panes.Scroll_Pane):
-    def __init__(self, stdscr, notification_box):
+    def __init__(self, stdscr, notification_box, test_pane):
         super(Test_Pane2, self).__init__(stdscr, panes.Scroll_Pane_Type.SINGLE_SELECT)
 
         self._notification_box = notification_box
 
+        self._test_pane = test_pane
+
         l = []
         for d in range(0, 50):
-            t = 'basic string text'
+            t = 'basic string text3123123123123123123123123123123123123123123qweqweqwefdsfadffsddddddddddd'
             l.append(t)
 
         self.set_contents(l)
+
+        self._test_pane.attach_selection_changed_callback(self.selection_change)
+
+        self.set_header_line(core.Text_Line('This is my header!!123123123123123123123123123123123123123123123123qweqweqweqweqwqweqwqweqweqweqw', curses.color_pair(5)))
+
+    def selection_change(self, selection_arr):
+        for i in range(0, len(selection_arr) - 1):
+            if selection_arr[i] == True:
+                self.cursor(i)
+                break
+        self.needs_drawing()
 
 
 def main_test(stdscr):
@@ -39,7 +52,7 @@ def main_test(stdscr):
 
     notification_box = panes.Notification_Box(stdscr)
     test_pane = Test_Pane(stdscr, notification_box)
-    test_pane2 = Test_Pane2(stdscr, notification_box)
+    test_pane2 = Test_Pane2(stdscr, notification_box, test_pane)
 
     screen_builder = screen.Screen_Builder(stdscr,            2,     1, title='Avaliable Targets')
     #                                       start_x, start_y, width, height, one_line=False
