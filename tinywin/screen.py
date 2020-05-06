@@ -487,6 +487,8 @@ class Screen(object):
                 self.draw(current_time)
 
 
+        #TODO: Try using get_wch to see if we can capture more complex key inputs
+        #TODO: Support mouse scrolling
         c = self._stdscr.getch()
         #  try:
             # c = self._stdscr.get_wch()

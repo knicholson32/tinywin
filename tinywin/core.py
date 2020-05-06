@@ -185,6 +185,11 @@ class Pane(Drawable):
         if inc:
             self.line_counter = self.line_counter + 1
 
+    def addstr(self, y, x, string, color=None):
+        if color is None:
+            color = curses.color_pair(1)
+        self._win.addstr(y, x + 2, string, color)  # Move over one place to make space for the border
+
     def inc(self):
         self.line_counter = self.line_counter + 1
 
@@ -273,6 +278,9 @@ class Text_Line(object):
                 colors.append(arg)
             current_arg_is_text = not current_arg_is_text
 
+        # if len(texts) != len(colors):
+
+
         self._text_objects = []
         self._shortened_text_objects = []
 
@@ -345,7 +353,21 @@ class Text_Line(object):
 
             return Text_Line(*total_args, data=left_side.data, ellipsis_color=left_side._ellipsis_color)
         else:
-            return self.__str__() + o
+            left_side = self
+            right_side = o
+
+            l_objs = left_side._text_objects
+
+            total_args = []
+
+            for l in l_objs:
+                total_args.append(l.text)
+                total_args.append(l.color)
+
+            total_args.append(right_side)
+            total_args.append(None)
+
+            return Text_Line(*total_args, data=left_side.data, ellipsis_color=left_side._ellipsis_color)
 
     def __radd__(self, o):
         if isinstance(o, Text_Line):

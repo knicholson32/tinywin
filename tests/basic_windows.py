@@ -30,7 +30,7 @@ class Test_Pane2(panes.Scroll_Pane):
 
         l = []
         for d in range(0, 50):
-            t = core.Text_Line('Text line 1 ', curses.color_pair(5)) + core.Text_Line('Text line 2', curses.color_pair(7))
+            t = core.Text_Line('Text line 1 ', curses.color_pair(5)) + "test 2"
             # t = "test"
             l.append(t)
 
