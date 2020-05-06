@@ -302,10 +302,13 @@ class Text_Line(object):
     def output_to_window(self, win, line_counter, x_offset, highlight=0):
         len_counter = 0
         for t in self._shortened_text_objects:
-            if not highlight:
-                win.addstr(line_counter, len_counter + x_offset, t.text, t.color)
+            if t.color is None:
+                win.addstr(line_counter, len_counter + x_offset, t.text)
             else:
-                win.addstr(line_counter, len_counter + x_offset, t.text, t.color | highlight)
+                if not highlight:
+                    win.addstr(line_counter, len_counter + x_offset, t.text, t.color)
+                else:
+                    win.addstr(line_counter, len_counter + x_offset, t.text, t.color | highlight)
             len_counter = len_counter + len(t)
         if highlight:
             win.addstr(line_counter, len_counter + x_offset, ' '*(self._allowed_width - len_counter - x_offset - 3), highlight)

@@ -211,6 +211,9 @@ class Scroll_Pane(core.Pane):
 
         self._overall_width_reduction = self.border_width_reduction
 
+        self._header_line = None
+        self._scroll_contents = None
+
         if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
             self._overall_width_reduction = math.ceil(self.border_width_reduction / 2)
         elif self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT or self._scroll_type == Scroll_Pane_Type.MULTI_SELECT or self._scroll_type == Scroll_Pane_Type.CURSOR_ONLY:
@@ -223,12 +226,19 @@ class Scroll_Pane(core.Pane):
 
         self.scroll_area = None
 
+    def set_header_line(self, header_line):
+        self._header_line = header_line
+        if self._header_line is None:
+            return
+
     def set_contents(self, contents):
         self._scroll_contents = contents
         self.z = len(contents)
         self._num_options = self.z
 
         for i in range(0, len(self._scroll_contents)):
+            if isinstance(self._scroll_contents[i], str):
+                self._scroll_contents[i] = core.Text_Line(self._scroll_contents[i], None)
             self._scroll_contents[i].data['cursor'] = False
             self._scroll_contents[i].data['selected'] = False
 
@@ -238,6 +248,9 @@ class Scroll_Pane(core.Pane):
             self._overall_width_reduction = self.border_width_reduction - self._selection_width_reduction - self.num_pad_len_width
         if self.scroll_area is not None:
             self.scroll_area.update_lines(self._scroll_contents)
+            if self._cursor is not None:
+                self.scroll_area.cursor(self._cursor)
+        self.needs_drawing()
 
     def get_contents(self):
         return self._scroll_contents

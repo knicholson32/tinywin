@@ -20,15 +20,31 @@ class Test_Pane(panes.Scroll_Pane):
         self.set_contents(l)
 
 
+class Test_Pane2(panes.Scroll_Pane):
+    def __init__(self, stdscr, notification_box):
+        super(Test_Pane2, self).__init__(stdscr, panes.Scroll_Pane_Type.SINGLE_SELECT)
+
+        self._notification_box = notification_box
+
+        l = []
+        for d in range(0, 50):
+            t = 'basic string text'
+            l.append(t)
+
+        self.set_contents(l)
+
+
 def main_test(stdscr):
     main_scr = screen.Screen(stdscr)
 
     notification_box = panes.Notification_Box(stdscr)
     test_pane = Test_Pane(stdscr, notification_box)
+    test_pane2 = Test_Pane2(stdscr, notification_box)
 
-    screen_builder = screen.Screen_Builder(stdscr,            1,     1, title='Avaliable Targets')
+    screen_builder = screen.Screen_Builder(stdscr,            2,     1, title='Avaliable Targets')
     #                                       start_x, start_y, width, height, one_line=False
     screen_builder.add_pane(test_pane,      0,       0,       1,     1)
+    screen_builder.add_pane(test_pane2,     1,       0,       1,     1)
 
     screen_builder.add_footer(notification_box)
     main_scr.build(screen_builder)
