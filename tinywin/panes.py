@@ -253,6 +253,20 @@ class Scroll_Pane(core.Pane):
             if not isinstance(self._header_line, core.Text_Line):
                 self._header_line = core.Text_Line(self._header_Line, None)
 
+            if self._h is not None:
+                if self._scroll_contents is None:
+                    self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
+                                            self._w - self._overall_width_reduction)
+                else:
+                    self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
+                                            self._w - self._overall_width_reduction,
+                                            lines=self._scroll_contents)
+                if self._cursor is not None:
+                    self.scroll_area.cursor(self._cursor)
+
+                if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
+                    self.scroll_area.set_force_scrolling_only(True)
+
     def set_contents(self, contents):
         self._scroll_contents = contents
         self.z = len(contents)
@@ -390,9 +404,10 @@ class Scroll_Pane(core.Pane):
             self.scroll_area.get_lines()[selection].data['selected'] = not self.scroll_area.get_lines()[selection].data['selected']
         if self._selection_changed_callback is not None:
             lines = self.scroll_area.get_lines()
-            selection_arr = [None] * len(lines)
+            selection_arr = []
             for i in range(0, len(lines) - 1):
-                selection_arr[i] = lines[i].data['selected']
+                if lines[i].data['selected'] == True:
+                    selection_arr.append(i)
             self._selection_changed_callback(selection_arr)
         self.needs_drawing()
 

@@ -327,10 +327,46 @@ class Text_Line(object):
 
     # TODO: Make the add return a new Text_Line with colors perserved
     def __add__(self, o):
-        return self.__str__() + o
+        if isinstance(o, Text_Line):
+            left_side = self
+            right_side = o
+
+            l_objs = left_side._text_objects
+            r_objs = right_side._text_objects
+
+            total_args = []
+
+            for l in l_objs:
+                total_args.append(l.text)
+                total_args.append(l.color)
+            for l in r_objs:
+                total_args.append(l.text)
+                total_args.append(l.color)
+
+            return Text_Line(*total_args, data=left_side.data, ellipsis_color=left_side._ellipsis_color)
+        else:
+            return self.__str__() + o
 
     def __radd__(self, o):
-        return o + self.__str__()
+        if isinstance(o, Text_Line):
+            left_side = o
+            right_side = self
+
+            l_objs = left_side._text_objects
+            r_objs = right_side._text_objects
+
+            total_args = []
+
+            for l in l_objs:
+                total_args.append(l.text)
+                total_args.append(l.color)
+            for l in r_objs:
+                total_args.append(l.text)
+                total_args.append(l.color)
+
+            return Text_Line(*total_args, data=left_side.data, ellipsis_color=left_side._ellipsis_color)
+        else:
+            return o + self.__str__()
 
     def __str__(self, use_unshortened_text=False):
         string = ''

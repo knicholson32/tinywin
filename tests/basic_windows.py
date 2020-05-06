@@ -30,7 +30,8 @@ class Test_Pane2(panes.Scroll_Pane):
 
         l = []
         for d in range(0, 50):
-            t = 'basic string text3123123123123123123123123123123123123123123qweqweqwefdsfadffsddddddddddd'
+            t = core.Text_Line('Text line 1 ', curses.color_pair(5)) + core.Text_Line('Text line 2', curses.color_pair(7))
+            # t = "test"
             l.append(t)
 
         self.set_contents(l)
@@ -40,11 +41,9 @@ class Test_Pane2(panes.Scroll_Pane):
         self.set_header_line(core.Text_Line('This is my header!!123123123123123123123123123123123123123123123123qweqweqweqweqwqweqwqweqweqweqw', curses.color_pair(5)))
 
     def selection_change(self, selection_arr):
-        for i in range(0, len(selection_arr) - 1):
-            if selection_arr[i] == True:
-                self.cursor(i)
-                break
-        self.needs_drawing()
+        if len(selection_arr) > 0:
+            self.cursor(selection_arr[0])
+            self.needs_drawing()
 
 
 def main_test(stdscr):
