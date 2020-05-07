@@ -37,7 +37,8 @@ def curses_init():
     curses.cbreak()
     stdscr.keypad(True)
     curses.start_color()
-    curses.mousemask(1)
+    # curses.mousemask(1)
+    curses.mousemask(-1)
     curses.use_default_colors()
     curses.init_pair(1, -1, -1)
     curses.init_pair(2, 240, -1)
@@ -69,3 +70,38 @@ def curses_destroy(stdscr):
     curses.endwin()
     curses.mousemask(0)
     curses.curs_set(1)
+
+
+curses_mouse_states = {
+    curses.BUTTON1_PRESSED: 'Button 1 Pressed',
+    curses.BUTTON1_RELEASED: 'Button 1 Released',
+    curses.BUTTON1_CLICKED: 'Button 1 Clicked',
+    curses.BUTTON1_DOUBLE_CLICKED: 'Button 1 Double-Clicked',
+    curses.BUTTON1_TRIPLE_CLICKED: 'Button 1 Triple-Clicked',
+
+    curses.BUTTON2_PRESSED: 'Button 2 Pressed',
+    curses.BUTTON2_RELEASED: 'Button 2 Released',
+    curses.BUTTON2_CLICKED: 'Button 2 Clicked',
+    curses.BUTTON2_DOUBLE_CLICKED: 'Button 2 Double-Clicked',
+    curses.BUTTON2_TRIPLE_CLICKED: 'Button 2 Triple-Clicked',
+
+    curses.BUTTON3_PRESSED: 'Button 3 Pressed',
+    curses.BUTTON3_RELEASED: 'Button 3 Released',
+    curses.BUTTON3_CLICKED: 'Button 3 Clicked',
+    curses.BUTTON3_DOUBLE_CLICKED: 'Button 3 Double-Clicked',
+    curses.BUTTON3_TRIPLE_CLICKED: 'Button 3 Triple-Clicked',
+
+    curses.BUTTON4_PRESSED: 'Button 4 Pressed',
+    curses.BUTTON4_RELEASED: 'Button 4 Released',
+    curses.BUTTON4_CLICKED: 'Button 4 Clicked',
+    curses.BUTTON4_DOUBLE_CLICKED: 'Button 4 Double-Clicked',
+    curses.BUTTON4_TRIPLE_CLICKED: 'Button 4 Triple-Clicked',
+
+    curses.BUTTON_SHIFT: 'Button Shift',
+    curses.BUTTON_CTRL: 'Button Ctrl',
+    curses.BUTTON_ALT: 'Button Alt',
+
+    134217728: 'REPORT_MOUSE_POSITION'
+}
+
+REPORT_MOUSE_POSITION = 134217728

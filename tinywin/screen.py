@@ -10,6 +10,8 @@ class InputEvent(object):
         self._mouse_event = False
         if key == curses.KEY_MOUSE:
             try:
+                # mouse_res = curses.getmouse()
+                # raise Exception(mouse_res[4])
                 self._id, self._mx, self._my, self._z, self._bstate = curses.getmouse()
                 self._mouse_event = True
             except curses.error as e:
@@ -516,10 +518,14 @@ class Screen(object):
 
     def key_input(self, ie):
         tmp_ie = ie
-        for p in self.processable_objects:
-            tmp_ie = p.key_input(tmp_ie)
-        for d in self.drawable_objects:
-            tmp_ie = d.key_input(tmp_ie)
+        if ie.key == curses.KEY_RESIZE:
+            #TODO: Implement resize code
+            raise Exception('Resize not implimented')
+        else:
+            for p in self.processable_objects:
+                tmp_ie = p.key_input(tmp_ie)
+            for d in self.drawable_objects:
+                tmp_ie = d.key_input(tmp_ie)
         return tmp_ie
 
     def process(self, current_time):
@@ -537,3 +543,5 @@ class Screen(object):
             self._screen_builder.draw()
 
         self._last_draw_time = current_time
+
+

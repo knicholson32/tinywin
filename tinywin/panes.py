@@ -2,7 +2,7 @@ import curses
 import math
 from enum import Enum
 
-from tinywin import core
+from tinywin import core, helpers
 
 class Scroll_Area(object):
     """Scroll Area calculation helper object
@@ -441,14 +441,22 @@ class Scroll_Pane(core.Pane):
             return self._bulk_selection_event(input_event)
         elif key == curses.KEY_MOUSE:
             try:
-                _, self._mx, self._my, _, _ = input_event.get_mouse()
+                _, self._mx, self._my, _, self.mouse_state = input_event.get_mouse()
+                # raise Exception(self.mouse_state)
+            except curses.error:
+                return input_event
+            if self.mouse_state == curses.BUTTON1_PRESSED or self.mouse_state == curses.BUTTON1_CLICKED:
                 offset_y, _ = self._win.getbegyx()
                 header_offset = 1 if self._header_line is not None else 0
                 self.cursor(self._my - offset_y - math.ceil(self.border_height_reduction / 2) + self.scroll_area.mouse_y_offset - header_offset)
                 self.needs_drawing()
-            except curses.error:
-                pass
-            input_event.absorb()
+                input_event.absorb()
+            elif self.mouse_state == helpers.REPORT_MOUSE_POSITION: # Mouse wheel down
+                return self._step_by(1, input_event)
+            elif self.mouse_state == curses.BUTTON4_PRESSED: # Mouse wheel up
+                return self._step_by(-1, input_event) 
+
+            return input_event
         else:
             return input_event  # Unknown key - pass it back to the driver
 
