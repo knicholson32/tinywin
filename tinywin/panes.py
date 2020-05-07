@@ -480,6 +480,7 @@ class Scroll_Pane(core.Pane):
 
         if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
             self.scroll_area.set_force_scrolling_only(True)
+        self.needs_drawing()
 
     def process(self, process_time):
         super(Scroll_Pane, self).process(process_time)

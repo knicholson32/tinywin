@@ -6,3 +6,4 @@ device_data.json
 /build
 /dist
 *.egg-info
+**no_include.py

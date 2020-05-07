@@ -37,6 +37,7 @@ class Drawable(Processable):
     def assign_win(self, win):
         self._win = win
         self._calc_win_coords()
+        self.needs_drawing()
         self.win_has_been_assigned = True
 
     def _calc_win_coords(self):
@@ -52,6 +53,11 @@ class Drawable(Processable):
     def draw(self):
         if self._needs_drawing:
             self._refresh()
+
+    def resize(self, nlines, ncols):
+        if win is not None:
+            win.resize(nlines, ncols)
+        self.needs_drawing()
 
     def needs_drawing(self):
         self._needs_drawing = True
@@ -79,11 +85,15 @@ class Pane(Drawable):
     def assign_win(self, win):
         super(Pane, self).assign_win(win)
 
+
     def process(self, time):
         super(Pane, self).process(time)
 
     def draw(self):
         super(Pane, self).draw()
+
+    def resize(self, nlines, ncols):
+        super(Pane, self).resize(nlines, ncols)
 
     def add_focus_cursor_data(self, data):
         self.focus_cursor_data = data
@@ -232,6 +242,15 @@ class Pane_Holder(Processable):
         self._pane.assign_win(win)
         self._win = win
 
+    def move_win(self, begin_y, begin_x):
+        self._win.mvwin(begin_y, begin_x)
+
+    def resize_win(self, nlines, ncols):
+        self._win.resize(nlines, ncols)
+
+    def refresh_assign_win(self):
+        self._pane.assign_win(self._win)
+
     def get_pane(self):
         return self._pane
 
@@ -358,19 +377,22 @@ class Text_Line(object):
         return self._text_objects[index]
 
     def output_to_window(self, win, line_counter, x_offset, highlight=0):
-        len_counter = 0
-        for t in self._shortened_text_objects:
-            if t.color is None:
-                win.addstr(line_counter, len_counter + x_offset, t.text)
-            else:
-                if not highlight:
-                    win.addstr(line_counter, len_counter + x_offset, t.text, t.color)
+        try:
+            len_counter = 0
+            for t in self._shortened_text_objects:
+                if t.color is None:
+                    win.addstr(line_counter, len_counter + x_offset, t.text)
                 else:
-                    win.addstr(line_counter, len_counter + x_offset, t.text, t.color | highlight)
-            len_counter = len_counter + len(t)
-        if highlight:
-            win.addstr(line_counter, len_counter + x_offset, ' '*(self._allowed_width - len_counter - x_offset - 3), highlight)
-        return len_counter
+                    if not highlight:
+                        win.addstr(line_counter, len_counter + x_offset, t.text, t.color)
+                    else:
+                        win.addstr(line_counter, len_counter + x_offset, t.text, t.color | highlight)
+                len_counter = len_counter + len(t)
+            if highlight:
+                win.addstr(line_counter, len_counter + x_offset, ' '*(self._allowed_width - len_counter - x_offset - 3), highlight)
+            return len_counter
+        except curses.error:
+            pass
 
     def uniform_color(self, color):
         for t in self._text_objects:
