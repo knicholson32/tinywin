@@ -38,7 +38,7 @@ class Test_Pane2(panes.Scroll_Pane):
 
         self._test_pane.attach_selection_changed_callback(self.selection_change)
 
-        self.set_header_line(core.Text_Line('This is my header!!123123123123123123123123123123123123123123123123qweqweqweqweqwqweqwqweqweqweqw', curses.color_pair(5)))
+        # self.set_header_line(core.Text_Line('This is my header!!123123123123123123123123123123123123123123123123qweqweqweqweqwqweqwqweqweqweqw', curses.color_pair(5)))
         self.set_footer_line(core.Text_Line('This is my footer!!123123123123123123123123123123123123123123123123qweqweqweqweqwqweqwqweqweqweqw', curses.color_pair(5)))
 
 
