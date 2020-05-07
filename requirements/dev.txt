@@ -4,3 +4,4 @@ wheel==0.34.2
 tqdm==4.43.0
 twine==3.1.1
 sphinx
+bump2version
