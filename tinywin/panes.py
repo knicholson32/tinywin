@@ -225,6 +225,7 @@ class Scroll_Pane(core.Pane):
             self.cursor_no_symbol = ' '
             self._cursor = 0
             self._selection_width_reduction = len(self.cursor_symbol)
+            self._last_selected_index = -1
         else:
             raise ValueError(f'Unimplemented scroll type "{self._scroll_type}"')
 
@@ -376,12 +377,14 @@ class Scroll_Pane(core.Pane):
             return self.step_by(-1, input_event)
         elif key == 337:  # Shift-Up Arrow
             return self.step_by(-5, input_event)
-        elif key == 32:  # Space
+        elif key == 32:   # Space
             return self.selection_event(input_event)
-        elif key == 43:  # Plus
+        elif key == 43:   # Plus
             return self.selection_event(input_event, force_to_value=True)
         elif key == 45 or key == 95:  # Minus or underline
             return self.selection_event(input_event, force_to_value=False)
+        elif key == 27 or key == 1 or key == 0:   # Escape, control-a, control-space
+            return self.bulk_selection_event(input_event)
         elif key == curses.KEY_MOUSE:
             try:
                 _, self._mx, self._my, _, _ = input_event.get_mouse()
@@ -399,6 +402,50 @@ class Scroll_Pane(core.Pane):
 
         return input_event
 
+    def _fire_selection_change(self):
+        self._last_selected_index = self._cursor
+        if self._selection_changed_callback is not None:
+            lines = self.scroll_area.get_lines()
+            selection_arr = []
+            for i in range(0, len(lines) - 1):
+                if lines[i].data['selected'] == True:
+                    selection_arr.append(i)
+            self._selection_changed_callback(selection_arr)
+
+    def bulk_selection_event(self, input_event):
+        if input_event.key == 27:  # Escape
+            for l in self.scroll_area.get_lines():
+                l.data['selected'] = False
+            self._fire_selection_change()
+            self.needs_drawing()
+            input_event.absorb()
+            return input_event
+        elif input_event.key == 1: # control-a
+            if self._scroll_type == Scroll_Pane_Type.MULTI_SELECT:
+                for l in self.scroll_area.get_lines():
+                    l.data['selected'] = not l.data['selected']
+                self._fire_selection_change()
+                self.needs_drawing()
+                input_event.absorb()
+            return input_event
+        elif input_event.key == 0: # control-space
+            if self._scroll_type == Scroll_Pane_Type.MULTI_SELECT:
+                if self._cursor == self._last_selected_index or self._last_selected_index == -1:
+                    return input_event
+                lines = self.scroll_area.get_lines()
+                if self._cursor > self._last_selected_index:
+                    for i in range(self._last_selected_index + 1, self._cursor + 1):
+                        lines[i].data['selected'] = not lines[i].data['selected']
+                else:
+                    for i in range(self._cursor + 1, self._last_selected_index + 1):
+                        lines[i].data['selected'] = not lines[i].data['selected']
+                self._fire_selection_change()
+                self.needs_drawing()
+                input_event.absorb()
+            return input_event
+        else:
+            raise ValueError(f'Unimplemented bulk selection key "{input_event.key}"')
+
     def selection_event(self, input_event, force_to_value=None):
         if force_to_value is not None and (self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT or self._scroll_type == Scroll_Pane_Type.MULTI_SELECT):
             if force_to_value is True:
@@ -407,11 +454,7 @@ class Scroll_Pane(core.Pane):
             else:
                 for l in self.scroll_area.get_lines():
                     l.data['selected'] = False
-            lines = self.scroll_area.get_lines()
-            selection_arr = [None] * len(lines)
-            for i in range(0, len(lines) - 1):
-                selection_arr[i] = lines[i].data['selected']
-            self._selection_changed_callback(selection_arr)
+            self._fire_selection_change()
             self.needs_drawing()
             input_event.absorb()
             return input_event
@@ -436,13 +479,7 @@ class Scroll_Pane(core.Pane):
             self.scroll_area.get_lines()[selection].data['selected'] = True
         else:
             self.scroll_area.get_lines()[selection].data['selected'] = not self.scroll_area.get_lines()[selection].data['selected']
-        if self._selection_changed_callback is not None:
-            lines = self.scroll_area.get_lines()
-            selection_arr = []
-            for i in range(0, len(lines) - 1):
-                if lines[i].data['selected'] == True:
-                    selection_arr.append(i)
-            self._selection_changed_callback(selection_arr)
+        self._fire_selection_change()
         self.needs_drawing()
 
     def cursor(self, cursor):
