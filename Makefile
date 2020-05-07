@@ -21,6 +21,9 @@ install-local:
 	python3 -m pip install dist/tinywin*.whl
 
 upload-pypi:
+	make clean
+	bump2version patch --verbose --allow-dirty
+	make compile
 	python3 -m twine upload dist/*
 
 .PHONY: init test
