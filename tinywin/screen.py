@@ -496,6 +496,10 @@ class Screen(object):
         # except curses.error:
             # c = None
         self._ie = InputEvent(c)
+
+        # if c != -1 and c is not None:
+            # raise Exception(c)
+
         if c != -1:
             curses.flushinp()
         self._ie = self.key_input(self._ie)

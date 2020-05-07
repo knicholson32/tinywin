@@ -310,9 +310,11 @@ class Text_Line(object):
 
     def set_data(self, data):
         self.data = data.copy()
+        return self
 
     def set_allowed_width(self, width):
         self._allowed_width = width
+        return self
 
     def get_text_component(self, index):
         return self._text_objects[index]
@@ -415,6 +417,8 @@ class Text_Line(object):
         for t in self._shortened_text_objects:
             t.color = color
 
+        return self
+
     def get_has_been_shortened(self):
         return self._has_been_shortened
 
@@ -454,6 +458,7 @@ class Text_Line(object):
             for i in range(0, index+1):
                 self._shortened_text_objects.append(tmp_shortened_text_objects[i])
             self._shortened_text_objects.append(Text_Wrapper(self._ellipsis_text, self._ellipsis_color))
+        return self
 
 class TerminalTooSmallError(PaneError):
     def __init__(self, msg='Terminal too small for application'):

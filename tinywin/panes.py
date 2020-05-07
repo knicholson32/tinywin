@@ -260,7 +260,8 @@ class Scroll_Pane(core.Pane):
 
             if self._h is not None:
                 if self._scroll_contents is None:
-                    self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
+                    if self.scroll_area._height != self._h - self._overall_height_reduction:
+                        self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
                                             self._w - self._overall_width_reduction)
                 else:
                     self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
@@ -285,7 +286,8 @@ class Scroll_Pane(core.Pane):
 
             if self._h is not None:
                 if self._scroll_contents is None:
-                    self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
+                    if self.scroll_area._height != self._h - self._overall_height_reduction:
+                        self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
                                                    self._w - self._overall_width_reduction)
                 else:
                     self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
@@ -384,7 +386,7 @@ class Scroll_Pane(core.Pane):
             try:
                 _, self._mx, self._my, _, _ = input_event.get_mouse()
                 offset_y, _ = self._win.getbegyx()
-                self.cursor(self._my - offset_y - math.ceil(self.border_height_reduction / 2) + self.scroll_area.mouse_y_offset)
+                self.cursor(self._my - offset_y - math.floor(self._overall_height_reduction/2) + self.scroll_area.mouse_y_offset)
                 self.needs_drawing()
             except curses.error:
                 pass
