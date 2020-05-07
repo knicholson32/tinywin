@@ -3,11 +3,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 setuptools.setup(
     name='tinywin',
-    version='0.1.10',
+    version='0.1.12',
     scripts=[],
     author="Keenan Nicholson",
     author_email="",
-    description="A tiny Curses window management library, designed to work with CircuitPython_Curses",
+    description="A tiny Curses window management library.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/knicholson32/tinywin/",

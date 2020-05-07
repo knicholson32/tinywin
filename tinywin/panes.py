@@ -25,9 +25,11 @@ class Scroll_Area(object):
         self._org_width = width
 
     def set_force_scrolling_only(self, force_scrolling_only):
+        """Set whether or not scrolling is via direct key input (IE: up/down), or based on the cursor location"""
         self._force_scrolling_only = force_scrolling_only
 
     def update_lines(self, lines, update_org_width=False):
+        """Updates the lines in this scroll area"""
         self._org_lines = lines
         self.init_layout(self._height, self._org_width, 0, update_org_width=update_org_width)
 
@@ -63,21 +65,7 @@ class Scroll_Area(object):
 
         if self._lines:
             # Mark the approperate line as selected
-
-            # # Open a file with access mode 'a'
-            # with open("Output2.txt", "a") as file_object:
-            #     print('> 1: ', end='', file=file_object)
-            #     for l in self._lines:
-            #         print(str(l.data), file=file_object, end = ', ')
-            #     print('', file=file_object)
-
             self._lines[current_cursor].data['cursor'] = True
-
-            # with open("Output2.txt", "a") as file_object:
-            #     print('> 2: ', end='', file=file_object)
-            #     for l in self._lines:
-            #         print(str(l.data), file=file_object, end = ', ')
-            #     print('', file=file_object)
 
         # Calculate the total number of lines that can fit in this scroll area
         self.total_num_lines = len(self._lines)
@@ -115,7 +103,6 @@ class Scroll_Area(object):
 
     def scroll_by(self, scroll_value):
         """Force a scroll of a certain amount. Useful for non-selectable lists."""
-
         if self.scroll_bar_needed:
             proposed_val = self._scroll_value + scroll_value
             if self._first_index == 0 and scroll_value < 0:
@@ -204,6 +191,78 @@ class Scroll_Pane_Type(Enum):
     MULTI_SELECT = 4
 
 class Scroll_Pane(core.Pane):
+    """Scroll Pane -> Extends Pane
+
+    This Pane allows contents to automatically be scrolled based on the type of scroll pane in use (as defined
+    by Scroll_Pane_Type). The following types are supported:
+
+        READ_ONLY:     Scrolls with up and down arrows. No selection.
+        CURSOR_ONLY:   Scrolls with cursor. No selection
+        SINGLE_SELECT: Scrolls with cursor. A single item can be selected.
+        MULTI_SELECT:  Scrolls with cursor. Multiple items can be selected.
+
+    User Functions:
+        attach_selection_changed_callback(callback): Attaches a callback that will be ran if selection changes
+        attach_cursor_moved_callback(callback):      Attaches a callback that will be ran if the cursor moves
+        set_header_line(header_line):                Sets the header line (does not scroll with pane)
+        set_footer_line(footer_line):                Sets the footer line (does not scroll with pane)
+        get_contents():                              Gets the contents of this scroll pane (scrollable contents)
+        set_contents(contents):                      Sets the contents of this scroll pane (scrollable contents)
+        get_selected():                              Gets an array with the indices of the selected items
+        select(index):                               Selects an item at the specified index
+        get_cursor():                                Gets the location of the cursor
+        cursor(index):                               Sets the location of the cursor
+
+    Overloaded Functions:
+        key_input(input_event): Process this pane's key input events
+        assign_win(win):        Assigns a window to this pane
+        process(process_time):  Allows this pane to process code at a regular intervial
+        draw():                 Allows this pane to draw its contents to the screen
+
+        Considerations:
+            key_input:
+                When intercepting key events, overload the key_input event with the following code:
+                def key_input(self, input_event):
+                    input_event = super(<CLASS_NAME>, self).key_input(input_event)
+                    if input_event.key is None:
+                        return input_event
+                    # Run code based on the input event
+                    
+                    # If we used the key event:
+                    input_event.absorb()
+
+                    # Finally:
+                    return input_event
+
+            assign_win:
+                When the width and/or height of the pane is required for the creation of content, code can be
+                placed in assign_win. Override the function with the following format:
+                def assign_win(self, win):
+                    super(<CLASS_NAME>, self).assign_win(win)
+                    # Access width and height with self._w and self._h
+
+            process:
+                When code needs to be ran at a regular interval (IE: waiting for an external shell command to
+                return), non-blocking code can be placed in the process function. Override the function with
+                the following format:
+                def process(self, process_time):
+                    super(<CLASS_NAME>, self).process(process_time)
+                    # Run code that needs to be ran at a regular interval.
+                    # Code MUST be non-blocking.
+
+            draw:
+                When custom items need to be drawn to the screen using self.addstr, this must be done in the
+                draw function. Remember to call self.needs_drawing() when something changes that indicates that
+                the pane needs a redraw. Override the function with the following format:
+                def draw(self):
+                    if not self.get_needs_drawing():
+                        return
+                    super(<CLASS_NAME>, self).draw()
+                
+                    # Draw custom information here
+
+    """
+
     def __init__(self, stdscr, scroll_type, header=None, footer=None):
         super(Scroll_Pane, self).__init__(stdscr)
 
@@ -243,10 +302,6 @@ class Scroll_Pane(core.Pane):
     def attach_cursor_moved_callback(self, callback):
         # cursor_position
         self._cursor_moved_callback = callback
-
-    def _try_cursor_moved_callback(self, cursor_pos):
-        if self._cursor_moved_callback is not None:
-            self._cursor_moved_callback(cursor_pos)
 
     def set_header_line(self, header_line):
         self._header_line = header_line
@@ -300,6 +355,9 @@ class Scroll_Pane(core.Pane):
                 if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
                     self.scroll_area.set_force_scrolling_only(True)
 
+    def get_contents(self):
+        return self._scroll_contents
+
     def set_contents(self, contents):
         self._scroll_contents = contents
         self.z = len(contents)
@@ -321,48 +379,42 @@ class Scroll_Pane(core.Pane):
                 self.scroll_area.cursor(self._cursor)
         self.needs_drawing()
 
-    def get_contents(self):
-        return self._scroll_contents
-
-    def assign_win(self, win):
-        super(Scroll_Pane, self).assign_win(win)
-
-        # if len(self.title) + self.border_width_reduction > self._w:
-        #     raise TerminalTooSmallError
-
-        if self._scroll_contents is None:
-            self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
-                                           self._w - self._overall_width_reduction)
+    def get_selected(self):
+        if self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT:
+            lines = self.scroll_area.get_lines()
+            for i in range(0, len(lines)):
+                if lines[i].data['selected'] is True:
+                    return i
+            return -1
+        elif self._scroll_type == Scroll_Pane_Type.MULTI_SELECT:
+            lines = self.scroll_area.get_lines()
+            selected_indices = []
+            for i in range(0, len(lines)):
+                if lines[i].data['selected'] is True:
+                    selected_indices.append(i)
+            return selected_indices
         else:
-            self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
-                                           self._w - self._overall_width_reduction,
-                                           lines=self._scroll_contents)
+            return None
 
-        if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
-            self.scroll_area.set_force_scrolling_only(True)
-
-    def step_by(self, step, ie):
-        end_stop = False
-        if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
-            end_stop = not self.scroll_area.scroll_by(step)
-        elif self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT or self._scroll_type == Scroll_Pane_Type.MULTI_SELECT or self._scroll_type == Scroll_Pane_Type.CURSOR_ONLY:
-            cur = self._cursor + step
-            if cur < 0:
-                cur = 0
-                end_stop = True
-            elif cur > self._num_options - 1:
-                cur = self._num_options - 1
-                end_stop = True
-            self.cursor(cur)
-            self.needs_drawing()
+    def select(self, selection, clear=True):
+        if clear:
+            for l in self.scroll_area.get_lines():
+                l.data['selected'] = False
+            self.scroll_area.get_lines()[selection].data['selected'] = True
         else:
-            raise ValueError(f'Unimplemented scroll type "{self._scroll_type}"')
+            self.scroll_area.get_lines()[selection].data['selected'] = not self.scroll_area.get_lines()[selection].data['selected']
+        self._fire_selection_change()
+        self.needs_drawing()
 
-        if not end_stop:
-            ie.absorb()
-            if step != 0:
-                self.needs_drawing()
-        return ie
+    def get_cursor(self):
+        return self._cursor
+
+    def cursor(self, cursor):
+        self._cursor = cursor
+        self.scroll_area.cursor(self._cursor)
+        self._try_cursor_moved_callback(self._cursor)
+
+    ## Overloaded Functions ##
 
     def key_input(self, input_event):
         input_event = super(Scroll_Pane, self).key_input(input_event)
@@ -370,21 +422,25 @@ class Scroll_Pane(core.Pane):
         if key is None or self._focus == False:
             return input_event
         if key == 258:  # Down Arrow
-            return self.step_by(1, input_event)
+            return self._step_by(1, input_event)
         elif key == 336:  # Shift-Down Arrow
-            return self.step_by(5, input_event)
+            return self._step_by(5, input_event)
         elif key == 259:  # Up Arrow
-            return self.step_by(-1, input_event)
+            return self._step_by(-1, input_event)
+        elif key == 261:  # Right Arrow
+            return self._return_to_end(input_event)
+        elif key == 260:  # Left Arrow
+            return self._return_to_begining(input_event)
         elif key == 337:  # Shift-Up Arrow
-            return self.step_by(-5, input_event)
+            return self._step_by(-5, input_event)
         elif key == 32:   # Space
-            return self.selection_event(input_event)
+            return self._selection_event(input_event)
         elif key == 43:   # Plus
-            return self.selection_event(input_event, force_to_value=True)
+            return self._selection_event(input_event, force_to_value=True)
         elif key == 45 or key == 95:  # Minus or underline
-            return self.selection_event(input_event, force_to_value=False)
+            return self._selection_event(input_event, force_to_value=False)
         elif key == 27 or key == 1 or key == 0:   # Escape, control-a, control-space
-            return self.bulk_selection_event(input_event)
+            return self._bulk_selection_event(input_event)
         elif key == curses.KEY_MOUSE:
             try:
                 _, self._mx, self._my, _, _ = input_event.get_mouse()
@@ -402,110 +458,22 @@ class Scroll_Pane(core.Pane):
 
         return input_event
 
-    def _fire_selection_change(self):
-        self._last_selected_index = self._cursor
-        if self._selection_changed_callback is not None:
-            lines = self.scroll_area.get_lines()
-            selection_arr = []
-            for i in range(0, len(lines) - 1):
-                if lines[i].data['selected'] == True:
-                    selection_arr.append(i)
-            self._selection_changed_callback(selection_arr)
+    def assign_win(self, win):
+        super(Scroll_Pane, self).assign_win(win)
 
-    def bulk_selection_event(self, input_event):
-        if input_event.key == 27:  # Escape
-            for l in self.scroll_area.get_lines():
-                l.data['selected'] = False
-            self._fire_selection_change()
-            self.needs_drawing()
-            input_event.absorb()
-            return input_event
-        elif input_event.key == 1: # control-a
-            if self._scroll_type == Scroll_Pane_Type.MULTI_SELECT:
-                for l in self.scroll_area.get_lines():
-                    l.data['selected'] = not l.data['selected']
-                self._fire_selection_change()
-                self.needs_drawing()
-                input_event.absorb()
-            return input_event
-        elif input_event.key == 0: # control-space
-            if self._scroll_type == Scroll_Pane_Type.MULTI_SELECT:
-                if self._cursor == self._last_selected_index or self._last_selected_index == -1:
-                    return input_event
-                lines = self.scroll_area.get_lines()
-                if self._cursor > self._last_selected_index:
-                    for i in range(self._last_selected_index + 1, self._cursor + 1):
-                        lines[i].data['selected'] = not lines[i].data['selected']
-                else:
-                    for i in range(self._cursor + 1, self._last_selected_index + 1):
-                        lines[i].data['selected'] = not lines[i].data['selected']
-                self._fire_selection_change()
-                self.needs_drawing()
-                input_event.absorb()
-            return input_event
+        # if len(self.title) + self.border_width_reduction > self._w:
+        #     raise TerminalTooSmallError
+
+        if self._scroll_contents is None:
+            self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
+                                           self._w - self._overall_width_reduction)
         else:
-            raise ValueError(f'Unimplemented bulk selection key "{input_event.key}"')
+            self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
+                                           self._w - self._overall_width_reduction,
+                                           lines=self._scroll_contents)
 
-    def selection_event(self, input_event, force_to_value=None):
-        if force_to_value is not None and (self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT or self._scroll_type == Scroll_Pane_Type.MULTI_SELECT):
-            if force_to_value is True:
-                for l in self.scroll_area.get_lines():
-                    l.data['selected'] = True
-            else:
-                for l in self.scroll_area.get_lines():
-                    l.data['selected'] = False
-            self._fire_selection_change()
-            self.needs_drawing()
-            input_event.absorb()
-            return input_event
-        if self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT:
-            self.select(self._cursor)
-            input_event.absorb()
-            return input_event
-        elif self._scroll_type == Scroll_Pane_Type.MULTI_SELECT:
-            self.select(self._cursor, clear=False)
-            input_event.absorb()
-            return input_event
-        elif self._scroll_type == Scroll_Pane_Type.CURSOR_ONLY:
-            return input_event
-        else:
-            raise ValueError(f'Unimplemented scroll type "{self._scroll_type}"')
-        return input_event
-
-    def select(self, selection, clear=True):
-        if clear:
-            for l in self.scroll_area.get_lines():
-                l.data['selected'] = False
-            self.scroll_area.get_lines()[selection].data['selected'] = True
-        else:
-            self.scroll_area.get_lines()[selection].data['selected'] = not self.scroll_area.get_lines()[selection].data['selected']
-        self._fire_selection_change()
-        self.needs_drawing()
-
-    def cursor(self, cursor):
-        self._cursor = cursor
-        self.scroll_area.cursor(self._cursor)
-        self._try_cursor_moved_callback(self._cursor)
-
-    def get_cursor(self):
-        return self._cursor
-
-    def get_selected(self):
-        if self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT:
-            lines = self.scroll_area.get_lines()
-            for i in range(0, len(lines)):
-                if lines[i].data['selected'] is True:
-                    return i
-            return -1
-        elif self._scroll_type == Scroll_Pane_Type.MULTI_SELECT:
-            lines = self.scroll_area.get_lines()
-            selected_indices = []
-            for i in range(0, len(lines)):
-                if lines[i].data['selected'] is True:
-                    selected_indices.append(i)
-            return selected_indices
-        else:
-            return None
+        if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
+            self.scroll_area.set_force_scrolling_only(True)
 
     def process(self, process_time):
         super(Scroll_Pane, self).process(process_time)
@@ -568,6 +536,117 @@ class Scroll_Pane(core.Pane):
             raise ValueError(f'Unimplemented scroll type "{self._scroll_type}"')
 
         super(Scroll_Pane, self).draw()
+
+    ## Private Functions ##
+
+    def _fire_selection_change(self):
+        self._last_selected_index = self._cursor
+        if self._selection_changed_callback is not None:
+            lines = self.scroll_area.get_lines()
+            selection_arr = []
+            for i in range(0, len(lines) - 1):
+                if lines[i].data['selected'] == True:
+                    selection_arr.append(i)
+            self._selection_changed_callback(selection_arr)
+
+    def _bulk_selection_event(self, input_event):
+        if input_event.key == 27:  # Escape
+            for l in self.scroll_area.get_lines():
+                l.data['selected'] = False
+            self._fire_selection_change()
+            self.needs_drawing()
+            input_event.absorb()
+            return input_event
+        elif input_event.key == 1: # control-a
+            if self._scroll_type == Scroll_Pane_Type.MULTI_SELECT:
+                for l in self.scroll_area.get_lines():
+                    l.data['selected'] = not l.data['selected']
+                self._fire_selection_change()
+                self.needs_drawing()
+                input_event.absorb()
+            return input_event
+        elif input_event.key == 0: # control-space
+            if self._scroll_type == Scroll_Pane_Type.MULTI_SELECT:
+                if self._cursor == self._last_selected_index or self._last_selected_index == -1:
+                    return input_event
+                lines = self.scroll_area.get_lines()
+                if self._cursor > self._last_selected_index:
+                    for i in range(self._last_selected_index + 1, self._cursor + 1):
+                        lines[i].data['selected'] = not lines[i].data['selected']
+                else:
+                    for i in range(self._cursor + 1, self._last_selected_index + 1):
+                        lines[i].data['selected'] = not lines[i].data['selected']
+                self._fire_selection_change()
+                self.needs_drawing()
+                input_event.absorb()
+            return input_event
+        else:
+            raise ValueError(f'Unimplemented bulk selection key "{input_event.key}"')
+
+    def _selection_event(self, input_event, force_to_value=None):
+        if force_to_value is not None and (self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT or self._scroll_type == Scroll_Pane_Type.MULTI_SELECT):
+            if force_to_value is True:
+                for l in self.scroll_area.get_lines():
+                    l.data['selected'] = True
+            else:
+                for l in self.scroll_area.get_lines():
+                    l.data['selected'] = False
+            self._fire_selection_change()
+            self.needs_drawing()
+            input_event.absorb()
+            return input_event
+        if self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT:
+            self.select(self._cursor)
+            input_event.absorb()
+            return input_event
+        elif self._scroll_type == Scroll_Pane_Type.MULTI_SELECT:
+            self.select(self._cursor, clear=False)
+            input_event.absorb()
+            return input_event
+        elif self._scroll_type == Scroll_Pane_Type.CURSOR_ONLY:
+            return input_event
+        else:
+            raise ValueError(f'Unimplemented scroll type "{self._scroll_type}"')
+        return input_event
+    
+    def _try_cursor_moved_callback(self, cursor_pos):
+        if self._cursor_moved_callback is not None:
+            self._cursor_moved_callback(cursor_pos)
+
+    def _step_by(self, step, ie):
+        end_stop = False
+        if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
+            end_stop = not self.scroll_area.scroll_by(step)
+        elif self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT or self._scroll_type == Scroll_Pane_Type.MULTI_SELECT or self._scroll_type == Scroll_Pane_Type.CURSOR_ONLY:
+            cur = self._cursor + step
+            if cur < 0:
+                cur = 0
+                end_stop = True
+            elif cur > self._num_options - 1:
+                cur = self._num_options - 1
+                end_stop = True
+            self.cursor(cur)
+            self.needs_drawing()
+        else:
+            raise ValueError(f'Unimplemented scroll type "{self._scroll_type}"')
+
+        if not end_stop:
+            ie.absorb()
+            if step != 0:
+                self.needs_drawing()
+        return ie
+
+    def _return_to_begining(self, ie):
+        self.cursor(0)
+        ie.absorb()
+        self.needs_drawing()
+        return ie
+
+    def _return_to_end(self, ie):
+        self.cursor(self._num_options - 1)
+        ie.absorb()
+        self.needs_drawing()
+        return ie
 
 class Notification_Box(core.Pane):
     def __init__(self, stdscr, x=0, y=0, header='', right_aligned=False, loading_square=True, idle=True):
