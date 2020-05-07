@@ -204,7 +204,7 @@ class Scroll_Pane_Type(Enum):
     MULTI_SELECT = 4
 
 class Scroll_Pane(core.Pane):
-    def __init__(self, stdscr, scroll_type, header=None):
+    def __init__(self, stdscr, scroll_type, header=None, footer=None):
         super(Scroll_Pane, self).__init__(stdscr)
 
         self._scroll_type = scroll_type
@@ -214,6 +214,7 @@ class Scroll_Pane(core.Pane):
         self._header_width_reduction = self._overall_width_reduction
 
         self.set_header_line(header)
+        self.set_footer_line(footer)
 
         self._scroll_contents = None
 
@@ -249,7 +250,11 @@ class Scroll_Pane(core.Pane):
     def set_header_line(self, header_line):
         self._header_line = header_line
         if self._header_line is not None:
-            self._overall_height_reduction = self.border_height_reduction + 1
+            if self._footer_line is not None:
+                self._overall_height_reduction = self.border_height_reduction + 2
+            else:
+                self._overall_height_reduction = self.border_height_reduction + 1
+
             if not isinstance(self._header_line, core.Text_Line):
                 self._header_line = core.Text_Line(self._header_Line, None)
 
@@ -261,6 +266,31 @@ class Scroll_Pane(core.Pane):
                     self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
                                             self._w - self._overall_width_reduction,
                                             lines=self._scroll_contents)
+                if self._cursor is not None:
+                    self.scroll_area.cursor(self._cursor)
+
+                if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
+                    self.scroll_area.set_force_scrolling_only(True)
+    
+    def set_footer_line(self, footer_line):
+        self._footer_line = footer_line
+        if self._footer_line is not None:
+            if self._header_line is not None:
+                self._overall_height_reduction = self.border_height_reduction + 2
+            else:
+                self._overall_height_reduction = self.border_height_reduction + 1
+
+            if not isinstance(self._footer_line, core.Text_Line):
+                self._footer_line = core.Text_Line(self._footer_line, None)
+
+            if self._h is not None:
+                if self._scroll_contents is None:
+                    self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
+                                                   self._w - self._overall_width_reduction)
+                else:
+                    self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
+                                                   self._w - self._overall_width_reduction,
+                                                   lines=self._scroll_contents)
                 if self._cursor is not None:
                     self.scroll_area.cursor(self._cursor)
 
@@ -456,6 +486,11 @@ class Scroll_Pane(core.Pane):
                 self._header_line.shorten_to_length(self._w - self._header_width_reduction)
             self._header_line.output_to_window(self._win, self.line_counter, 1)
             self.inc()
+
+        if self._footer_line is not None:
+            if self._footer_line.get_has_been_shortened() is False:
+                self._footer_line.shorten_to_length(self._w - self._header_width_reduction)
+            self._footer_line.output_to_window(self._win, self._h - math.ceil(self._overall_height_reduction/2) - 1, 1)
 
         if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
             for l in lines:

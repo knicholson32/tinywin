@@ -14,7 +14,7 @@ class Test_Pane(panes.Scroll_Pane):
 
         l = []
         for d in range(0, 50):
-            t = core.Text_Line(f'This is a test!', curses.color_pair(7), f' {d}', curses.color_pair(2))
+            t = core.Text_Line('This is a test!', curses.color_pair(7), f' {d}', curses.color_pair(2))
             l.append(t)
 
         self.set_contents(l)
@@ -39,6 +39,8 @@ class Test_Pane2(panes.Scroll_Pane):
         self._test_pane.attach_selection_changed_callback(self.selection_change)
 
         self.set_header_line(core.Text_Line('This is my header!!123123123123123123123123123123123123123123123123qweqweqweqweqwqweqwqweqweqweqw', curses.color_pair(5)))
+        self.set_footer_line(core.Text_Line('This is my footer!!123123123123123123123123123123123123123123123123qweqweqweqweqwqweqwqweqweqweqw', curses.color_pair(5)))
+
 
     def selection_change(self, selection_arr):
         if len(selection_arr) > 0:

@@ -308,6 +308,7 @@ class Text_Line(object):
     def get_text_component(self, index):
         return self._text_objects[index]
 
+    # TODO: Allow this to be done by passing it to addstr instead
     def output_to_window(self, win, line_counter, x_offset, highlight=0):
         len_counter = 0
         for t in self._shortened_text_objects:
