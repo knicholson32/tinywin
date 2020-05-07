@@ -1,7 +1,5 @@
 import curses
 import math
-import time
-import copy
 from enum import Enum
 
 from tinywin import core

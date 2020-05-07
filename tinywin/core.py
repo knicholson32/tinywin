@@ -261,6 +261,44 @@ class Text_Wrapper(object):
         return Text_Wrapper(self.text, self.color)
 
 class Text_Line(object):
+    """Text_Line
+
+    This class is a wrapper for strings that allows color information to be associated. They can be used in
+    most cases a regular string can be used, and with regards to this library, are interchangable with
+    strings.
+
+    Each Text_Line should represent a single line of data to be printed to the screen. Many blocks of colored
+    strings can be contained in a single Text_Line, and Text_Lines can be added together to merge their data.
+
+    On initialization, strings and colors should be passed in as arguments:
+        tl = Text_Line('This is color 1,', curses.color_pair(1), ' but this part is color 2.', curses.color_pair(2))
+
+    Named Arguments:
+        data:           Data to be associated with this line of data. Useful for lists of data. [None]
+        ellipsis_color: Color of the ellipsis at the end of a shortened Text_Line. [None (default color)]
+        ellipsis_text:  Text to serve ellipsis purpose at the end of a shortened Text_Line. ['...']
+        allowed_width:  Width allocated for this Text_Line. A value will force the Text_Line to shorten to the 
+                        specified value. [None (no shortening)]
+
+    User Functions:
+        get_data():                  Gets the data dictionary associated with this Text_Line
+        set_data(data):              Sets the data to be associated with this Text_Line
+        output_to_window(win, y, x): Requests the Text_Line to draw to the specified window at the coords specified.
+        uniform_color(color):        Sets all text in the Text_Line to the same, specified color.
+        get_has_been_shortened():    Gets whether or not this text has been shortened.
+        shorten_to_length(length):   Requests the Text_Line to shorten its contents to fit the specified length.
+
+    Operators:
+        __len__: len(text_line): Length of a Text_Line is the length of characters of the text stored within. Color 
+                                 has no effect on the returned length.
+        __str__: str(text_line): Text_Lines can be converted to string, which will strip color info and output the raw
+                                 text stored within.
+        __add__: text_line1 + text_line2  || 'string' + text_line || text_line + 'string': Text_Lines can be added to
+                                 eachother, and to other objects. If both objects are Text_Lines, a new Text_Line will
+                                 be returned. If the first object is a Text_Line, a new Text_Line will be returned. If
+                                 the first object is not a Text_Line, the Text_Line object will be treated as a string
+                                 with regards to the add.
+    """
     def __init__(self, *args, data=None, ellipsis_color=None, ellipsis_text='...', allowed_width=None):
         self.data = data
         self._has_been_shortened = False
@@ -333,6 +371,56 @@ class Text_Line(object):
         if highlight:
             win.addstr(line_counter, len_counter + x_offset, ' '*(self._allowed_width - len_counter - x_offset - 3), highlight)
         return len_counter
+
+    def uniform_color(self, color):
+        for t in self._text_objects:
+            t.color = color
+
+        for t in self._shortened_text_objects:
+            t.color = color
+
+        return self
+
+    def get_has_been_shortened(self):
+        return self._has_been_shortened
+
+    def shorten_to_length(self, length):
+        self._allowed_width = length
+        self._has_been_shortened = True
+        tmp_shortened_text_objects = []
+        for t in self._text_objects:
+            tmp_shortened_text_objects.append(t.copy())
+        total_len = 0
+        for t in tmp_shortened_text_objects:
+            total_len = total_len + len(t)
+        if total_len > length:
+            self._shortened_text_objects = []
+            # print(total_len, length)
+            index = len(tmp_shortened_text_objects) - 1  # Start at the end of the colored string
+            character_index = len(tmp_shortened_text_objects[index])-1  # Start at the last character in the last string
+            removing = True
+
+            while removing is True:
+                total_len = total_len - 1
+                character_index = character_index - 1
+                if character_index < 0:
+                    index = index - 1
+                    if index < 0:
+                        raise TerminalTooSmallError(f'Cannot shorten text "{self.__str__(use_unshortened_text=True)}" to length "{length}"')
+                    character_index = len(tmp_shortened_text_objects[index])-1
+                if total_len + len(self._ellipsis_text) <= length:
+                    removing = False
+
+            # We can use all text up to index, and the last piece of text can be used up to the character_index
+
+            tmp_shortened_text_objects[index].text = tmp_shortened_text_objects[index].text[0:character_index+1]  # Shorten last index text
+            if tmp_shortened_text_objects[index].text[len(tmp_shortened_text_objects[index].text)-1] == ' ':  # Trim a space if one exists
+                tmp_shortened_text_objects[index].text = tmp_shortened_text_objects[index].text[:-1]
+
+            for i in range(0, index+1):
+                self._shortened_text_objects.append(tmp_shortened_text_objects[i])
+            self._shortened_text_objects.append(Text_Wrapper(self._ellipsis_text, self._ellipsis_color))
+        return self
 
     def __len__(self, use_unshortened_text=False):
         counter = 0
@@ -409,56 +497,6 @@ class Text_Line(object):
             for t in self._shortened_text_objects:
                 string = string + t.text
         return string
-
-    def uniform_color(self, color):
-        for t in self._text_objects:
-            t.color = color
-
-        for t in self._shortened_text_objects:
-            t.color = color
-
-        return self
-
-    def get_has_been_shortened(self):
-        return self._has_been_shortened
-
-    def shorten_to_length(self, length):
-        self._allowed_width = length
-        self._has_been_shortened = True
-        tmp_shortened_text_objects = []
-        for t in self._text_objects:
-            tmp_shortened_text_objects.append(t.copy())
-        total_len = 0
-        for t in tmp_shortened_text_objects:
-            total_len = total_len + len(t)
-        if total_len > length:
-            self._shortened_text_objects = []
-            # print(total_len, length)
-            index = len(tmp_shortened_text_objects) - 1  # Start at the end of the colored string
-            character_index = len(tmp_shortened_text_objects[index])-1  # Start at the last character in the last string
-            removing = True
-
-            while removing is True:
-                total_len = total_len - 1
-                character_index = character_index - 1
-                if character_index < 0:
-                    index = index - 1
-                    if index < 0:
-                        raise TerminalTooSmallError(f'Cannot shorten text "{self.__str__(use_unshortened_text=True)}" to length "{length}"')
-                    character_index = len(tmp_shortened_text_objects[index])-1
-                if total_len + len(self._ellipsis_text) <= length:
-                    removing = False
-
-            # We can use all text up to index, and the last piece of text can be used up to the character_index
-
-            tmp_shortened_text_objects[index].text = tmp_shortened_text_objects[index].text[0:character_index+1]  # Shorten last index text
-            if tmp_shortened_text_objects[index].text[len(tmp_shortened_text_objects[index].text)-1] == ' ':  # Trim a space if one exists
-                tmp_shortened_text_objects[index].text = tmp_shortened_text_objects[index].text[:-1]
-
-            for i in range(0, index+1):
-                self._shortened_text_objects.append(tmp_shortened_text_objects[i])
-            self._shortened_text_objects.append(Text_Wrapper(self._ellipsis_text, self._ellipsis_color))
-        return self
 
 class TerminalTooSmallError(PaneError):
     def __init__(self, msg='Terminal too small for application'):
