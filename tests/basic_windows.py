@@ -47,6 +47,14 @@ class Test_Pane2(panes.Scroll_Pane):
             self.cursor(selection_arr[0])
             self.needs_drawing()
 
+    def draw(self):
+        if self._needs_drawing is False:
+            return
+        super(Test_Pane2, self).draw()
+
+        self.addstr(2, 2, core.Text_Line('This is my string!', curses.color_pair(7)))
+        self._win.refresh()
+
 
 def main_test(stdscr):
     main_scr = screen.Screen(stdscr)

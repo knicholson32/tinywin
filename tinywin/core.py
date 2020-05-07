@@ -178,17 +178,26 @@ class Pane(Drawable):
         else:
             self._win.addstr(self._h - 2, 0, '└' + ''.center(self._w-2, '─') + '┘', unfocused_line_color)
 
+    def _addstr_text_line(self, y, x, text_line):
+        text_line.output_to_window(self._win, y, x)
+
     def addstr_auto(self, x, string, color=None, inc=True):
-        if color is None:
-            color = curses.color_pair(1)
-        self._win.addstr(self.line_counter, x + 2, string, color)  # Move over one place to make space for the border
+        if isinstance(string, Text_Line):
+            self._addstr_text_line(self.line_counter, x, string)
+        else:
+            if color is None:
+                color = curses.color_pair(1)
+            self._win.addstr(self.line_counter, x + 2, string, color)  # Move over one place to make space for the border
         if inc:
             self.line_counter = self.line_counter + 1
 
     def addstr(self, y, x, string, color=None):
-        if color is None:
-            color = curses.color_pair(1)
-        self._win.addstr(y, x + 2, string, color)  # Move over one place to make space for the border
+        if isinstance(string, Text_Line):
+            self._addstr_text_line(y, x, string)
+        else:
+            if color is None:
+                color = curses.color_pair(1)
+            self._win.addstr(y, x + 2, string, color)  # Move over one place to make space for the border
 
     def inc(self):
         self.line_counter = self.line_counter + 1
@@ -308,7 +317,6 @@ class Text_Line(object):
     def get_text_component(self, index):
         return self._text_objects[index]
 
-    # TODO: Allow this to be done by passing it to addstr instead
     def output_to_window(self, win, line_counter, x_offset, highlight=0):
         len_counter = 0
         for t in self._shortened_text_objects:
@@ -334,7 +342,6 @@ class Text_Line(object):
                 counter = counter + len(t)
         return counter
 
-    # TODO: Make the add return a new Text_Line with colors perserved
     def __add__(self, o):
         if isinstance(o, Text_Line):
             left_side = self
