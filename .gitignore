@@ -2,7 +2,6 @@
 .vscode
 .gdb_history
 device_data.json
-*.txt
 /logs
 /build
 /dist
