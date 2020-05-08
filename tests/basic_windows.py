@@ -61,16 +61,14 @@ class Test_Pane2(panes.Scroll_Pane):
 
 class Test_Screen_Pane(panes.Screen_Pane):
     def __init__(self, stdscr):
-        super(Test_Screen_Pane, self).__init__(stdscr, title='Screen Pane')
+        super(Test_Screen_Pane, self).__init__(stdscr, title='Screen Pane2')
 
-
+        self.set_border_mode(core.Screen_Border_Mode.FULL_BORDER)
 
     def assign_win(self, win):
         
-
         self._h, self._w = win.getmaxyx()
-
-        self.sub_win = win.derwin(self._h - 2, self._w - 2, 1, 1)
+        self.sub_win = win.derwin(self._h - 3, self._w - 2, 1, 1)
         # self.sub_win.mvwin(20, 20)
 
         notification_box = panes.Notification_Box(self.sub_win)
@@ -81,7 +79,7 @@ class Test_Screen_Pane(panes.Screen_Pane):
         screen_builder.add_pane(test_pane,     0,       0,       1,     1)
         screen_builder.add_pane(test_pane2,     0,       1,       1,     1)
 
-        # screen_builder.add_footer(notification_box)
+        screen_builder.add_footer(notification_box)
 
         self.assign_screen_builder(screen_builder)
 
@@ -89,36 +87,43 @@ class Test_Screen_Pane(panes.Screen_Pane):
         super(Test_Screen_Pane, self).assign_win(win)
 
 
+class Main_Screen(panes.Screen_Pane):
+    def __init__(self, stdscr):
+        super(Main_Screen, self).__init__(stdscr, 
+            title='Main Screen')
+
+    def assign_win(self, win):
+        
+        self._h, self._w = win.getmaxyx()
+        self.sub_win = win.derwin(self._h - 3, self._w - 2, 1, 1)
 
 
+        notification_box = panes.Notification_Box(stdscr)
+        test_pane = Test_Pane(stdscr, notification_box)
+        test_pane2 = Test_Pane2(stdscr, notification_box, test_pane)
+
+        test_screen_pane = Test_Screen_Pane(stdscr)
+
+        screen_builder = screen.Screen_Builder(stdscr,               2,     1,      title='Testing 123123')
+        #                                          start_x, start_y, width, height, one_line=False
+        screen_builder.add_pane(test_screen_pane,  0,       0,       1,     1)
+        screen_builder.add_pane(test_pane2,        1,       0,       1,     1)
+        screen_builder.add_pane(test_pane2,        1,       0,       1,     1)
+
+        screen_builder.set_is_sub_screen(not self._top_level)
+
+        screen_builder.add_footer(notification_box)
+
+        self.assign_screen_builder(screen_builder)
+
+        super(Main_Screen, self).assign_win(win)
         
 
 
 
 def main_test(stdscr):
-    main_scr = screen.Screen(stdscr)
-
-    notification_box = panes.Notification_Box(stdscr)
-    test_pane = Test_Pane(stdscr, notification_box)
-    test_pane2 = Test_Pane2(stdscr, notification_box, test_pane)
-
-    test_screen_pane = Test_Screen_Pane(stdscr)
-    
-
-    screen_builder = screen.Screen_Builder(stdscr,            2,     1, title='Avaliable Targets')
-    #                                       start_x, start_y, width, height, one_line=False
-    screen_builder.add_pane(test_screen_pane,      0,       0,       1,     1)
-    screen_builder.add_pane(test_pane2,     1,       0,       1,     1)
-    # screen_builder.add_pane(test_pane2,     1,       0,       1,     1)
-
-    screen_builder.add_footer(notification_box)
-    main_scr.build(screen_builder)
-    main_scr.init()
-    interacting = True
-    while interacting:
-        interacting = main_scr.frame()
-
-    print('done')
+    main_screen = Main_Screen(stdscr)
+    main_screen.run_as_top_level()
 
 
 if __name__ == '__main__':

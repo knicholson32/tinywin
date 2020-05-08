@@ -104,6 +104,7 @@ class TabChain(core.Processable):
 
 class Screen_Title(object):
     def __init__(self, stdscr, height, width, y, x, title, no_title=False, draw_lower=False, lower_y=-1):
+        # raise Exception('here')
         super(Screen_Title, self).__init__()
         self._stdscr = stdscr
         self._height = height
@@ -162,7 +163,7 @@ class Screen_Builder(core.Processable):
 
         self.process_resize(init=True)
 
-
+        self._is_sub_screen = True
 
         self.current_focus = (0, 0)
 
@@ -182,15 +183,25 @@ class Screen_Builder(core.Processable):
         else:
             return self._panes
 
+    def set_is_sub_screen(self, val):
+        self._is_sub_screen = val
+
     def add_footer(self, footer):
         if self._footer is not None:
             raise Exception('This screen already has a footer object')
         self._footer = core.Pane_Holder(footer, 0, 0, 0, 0)
 
-        win = self._stdscr.derwin(0, self._w, self._h, 0)
-        self._footer.link_win(win)
+        if self._is_sub_screen is True:
+            win = self._stdscr.derwin(0, self._w, self._h - 1, 0)
+            self._footer.link_win(win)
+            self._h = self._h - 1
+        else:
+            win = self._stdscr.derwin(0, self._w, self._h, 0)
+            self._footer.link_win(win)
+            self._h = self._h - 1
+        
 
-        self._h = self._h - 1
+        
         self.calc_per_block()
 
     def add_tab_order(self, tab_order):
@@ -386,6 +397,7 @@ class Screen_Builder(core.Processable):
 
         self._y_offset = 0
 
+        # raise Exception(self._title_text)
         if self._title_text is not None and self._frameless is not True:
             self._Screen_Title = Screen_Title(self._stdscr, 1, self._w, 0, 0, self._title_text, draw_lower=True, lower_y=self._h-1)
             self._h = self._h - 2

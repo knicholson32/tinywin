@@ -675,14 +675,28 @@ class Scroll_Pane(core.Pane):
         self.needs_drawing()
         return ie
 
+# TODO: Finish allowing specific border modes to be set with set_border_mode
 
 class Screen_Pane(core.Pane):
     def __init__(self, stdscr, title=''):
         super(Screen_Pane, self).__init__(stdscr, title=title)
+        self._stdscr = stdscr
         self._last_focused_pane = None
         self._screen = None
         self._screen_builder = None
+        self._top_level = False
 
+        self._border_mode = core.Screen_Border_Mode.FULL_BORDER
+
+    def set_border_mode(self, mode):
+        self._border_mode = mode
+
+    def run_as_top_level(self):
+        self._top_level = True
+        self.assign_win(self._stdscr)
+        interacting = True
+        while interacting:
+            interacting = self._screen.frame()
 
     def assign_screen_builder(self, sb):
         self._screen_builder = sb
@@ -706,7 +720,8 @@ class Screen_Pane(core.Pane):
     
     def assign_win(self, win):
         super(Screen_Pane, self).assign_win(win)
-        self._screen = screen.Screen(win, sub_screen = True)
+        title = '' if not self._top_level else self._title
+        self._screen = screen.Screen(win, sub_screen=(not self._top_level))
         self._init_screen()
         self._screen.force_needs_drawing()
 

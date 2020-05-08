@@ -1,6 +1,14 @@
 import curses
+from enum import Enum
 
 from tinywin import helpers
+
+
+class Screen_Border_Mode(Enum):
+    BORDERLESS = 1
+    FULL_BORDER = 2
+    LIGHT_BORDER = 3
+    THIN_BORDER = 4
 
 class PaneError(Exception):
     def __init__(self, msg):
@@ -162,9 +170,9 @@ class Pane(Drawable):
             unfocused_line_color = focused_line_color
         if line is None:
             line = self.line_counter
-        # if reset_line:
-        #     self._win.move(line, 0)
-        #     self._win.clrtoeol()
+        if reset_line:
+            self._win.move(line, 0)
+            self._win.clrtoeol()
         if self._focus:
             self._win.addstr(line, 0, '│', focused_line_color)  # Default
             self._win.addstr(line, self._w-1, '│', focused_line_color)  # Default
