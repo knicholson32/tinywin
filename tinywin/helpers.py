@@ -57,6 +57,7 @@ def curses_init():
 
     curses.curs_set(0)
     stdscr.nodelay(True)
+    # stdscr.notimeout(True)
 
     stdscr.clear()
     stdscr.refresh()

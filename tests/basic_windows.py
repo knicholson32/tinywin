@@ -19,10 +19,13 @@ class Test_Pane(panes.Scroll_Pane):
 
         self.set_contents(l)
 
+    # def draw(self):
+        # super(Test_Pane, self).draw()
+
 
 class Test_Pane2(panes.Scroll_Pane):
     def __init__(self, stdscr, notification_box, test_pane):
-        super(Test_Pane2, self).__init__(stdscr, panes.Scroll_Pane_Type.SINGLE_SELECT)
+        super(Test_Pane2, self).__init__(stdscr, panes.Scroll_Pane_Type.SINGLE_SELECT, title='Test2')
 
         self._notification_box = notification_box
 
@@ -56,6 +59,42 @@ class Test_Pane2(panes.Scroll_Pane):
         self._win.refresh()
 
 
+class Test_Screen_Pane(panes.Screen_Pane):
+    def __init__(self, stdscr):
+        super(Test_Screen_Pane, self).__init__(stdscr, title='Screen Pane')
+
+
+
+    def assign_win(self, win):
+        
+
+        self._h, self._w = win.getmaxyx()
+
+        self.sub_win = win.derwin(self._h - 2, self._w - 2, 1, 1)
+        # self.sub_win.mvwin(20, 20)
+
+        notification_box = panes.Notification_Box(self.sub_win)
+        test_pane = Test_Pane(self.sub_win, notification_box)
+        test_pane2 = Test_Pane(self.sub_win, notification_box)
+
+        screen_builder = screen.Screen_Builder(self.sub_win,            1,     2, frameless=True)
+        screen_builder.add_pane(test_pane,     0,       0,       1,     1)
+        screen_builder.add_pane(test_pane2,     0,       1,       1,     1)
+
+        # screen_builder.add_footer(notification_box)
+
+        self.assign_screen_builder(screen_builder)
+
+
+        super(Test_Screen_Pane, self).assign_win(win)
+
+
+
+
+        
+
+
+
 def main_test(stdscr):
     main_scr = screen.Screen(stdscr)
 
@@ -63,10 +102,14 @@ def main_test(stdscr):
     test_pane = Test_Pane(stdscr, notification_box)
     test_pane2 = Test_Pane2(stdscr, notification_box, test_pane)
 
+    test_screen_pane = Test_Screen_Pane(stdscr)
+    
+
     screen_builder = screen.Screen_Builder(stdscr,            2,     1, title='Avaliable Targets')
     #                                       start_x, start_y, width, height, one_line=False
-    screen_builder.add_pane(test_pane,      0,       0,       1,     1)
+    screen_builder.add_pane(test_screen_pane,      0,       0,       1,     1)
     screen_builder.add_pane(test_pane2,     1,       0,       1,     1)
+    # screen_builder.add_pane(test_pane2,     1,       0,       1,     1)
 
     screen_builder.add_footer(notification_box)
     main_scr.build(screen_builder)

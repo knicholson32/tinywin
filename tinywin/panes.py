@@ -2,7 +2,7 @@ import curses
 import math
 from enum import Enum
 
-from tinywin import core, helpers
+from tinywin import core, helpers, screen
 
 class Scroll_Area(object):
     """Scroll Area calculation helper object
@@ -214,6 +214,7 @@ class Scroll_Pane(core.Pane):
     Overloaded Functions:
         key_input(input_event): Process this pane's key input events
         assign_win(win):        Assigns a window to this pane
+        window_size_update():   Called when the window is updated or the window changes size
         process(process_time):  Allows this pane to process code at a regular intervial
         draw():                 Allows this pane to draw its contents to the screen
 
@@ -239,6 +240,13 @@ class Scroll_Pane(core.Pane):
                     super(<CLASS_NAME>, self).assign_win(win)
                     # Access width and height with self._w and self._h
 
+            window_size_update:
+                When the window is assigned, changes size, or is replaced with a new window, this function is
+                called. Place code here that depends on the size of the window. Override the function with the
+                following format:
+                def window_size_update(self):
+                    super(<CLASS_NAME>, self).window_size_update()
+
             process:
                 When code needs to be ran at a regular interval (IE: waiting for an external shell command to
                 return), non-blocking code can be placed in the process function. Override the function with
@@ -261,8 +269,8 @@ class Scroll_Pane(core.Pane):
 
     """
 
-    def __init__(self, stdscr, scroll_type, header=None, footer=None):
-        super(Scroll_Pane, self).__init__(stdscr)
+    def __init__(self, stdscr, scroll_type, header=None, footer=None, title=''):
+        super(Scroll_Pane, self).__init__(stdscr, title=title)
 
         self._scroll_type = scroll_type
 
@@ -301,7 +309,7 @@ class Scroll_Pane(core.Pane):
         # cursor_position
         self._cursor_moved_callback = callback
 
-    def set_header_line(self, header_line):
+    def set_header_line(self, header_line, update_scroll_area=True):
         self._header_line = header_line
         if self._header_line is not None:
             if self._footer_line is not None:
@@ -312,7 +320,7 @@ class Scroll_Pane(core.Pane):
             if not isinstance(self._header_line, core.Text_Line):
                 self._header_line = core.Text_Line(self._header_Line, None)
 
-            if self._h is not None:
+            if self._h is not None and update_scroll_area is True:
                 if self._scroll_contents is None:
                     if self.scroll_area._height != self._h - self._overall_height_reduction:
                         self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
@@ -327,7 +335,7 @@ class Scroll_Pane(core.Pane):
                 if self._scroll_type == Scroll_Pane_Type.READ_ONLY:
                     self.scroll_area.set_force_scrolling_only(True)
     
-    def set_footer_line(self, footer_line):
+    def set_footer_line(self, footer_line, update_scroll_area=True):
         self._footer_line = footer_line
         if self._footer_line is not None:
             if self._header_line is not None:
@@ -338,7 +346,7 @@ class Scroll_Pane(core.Pane):
             if not isinstance(self._footer_line, core.Text_Line):
                 self._footer_line = core.Text_Line(self._footer_line, None)
 
-            if self._h is not None:
+            if self._h is not None and update_scroll_area is True:
                 if self._scroll_contents is None:
                     if self.scroll_area._height != self._h - self._overall_height_reduction:
                         self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
@@ -470,6 +478,15 @@ class Scroll_Pane(core.Pane):
         # if len(self.title) + self.border_width_reduction > self._w:
         #     raise TerminalTooSmallError
 
+        self.set_header_line(self._header_line, update_scroll_area=False)
+        self.set_footer_line(self._footer_line, update_scroll_area=False)
+
+        if self._header_line is not None:
+            self._header_line.shorten_to_length(self._w - self._header_width_reduction)
+
+        if self._footer_line is not None:
+            self._footer_line.shorten_to_length(self._w - self._header_width_reduction)
+
         if self._scroll_contents is None:
             self.scroll_area = Scroll_Area(self._h - self._overall_height_reduction,
                                            self._w - self._overall_width_reduction)
@@ -482,13 +499,16 @@ class Scroll_Pane(core.Pane):
             self.scroll_area.set_force_scrolling_only(True)
         self.needs_drawing()
 
+    def window_size_update(self):
+        super(Scroll_Pane, self).window_size_update()
+
     def process(self, process_time):
         super(Scroll_Pane, self).process(process_time)
 
     def draw(self):
         if not self.get_needs_drawing():
             return
-        self.init_frame(title='', unfocused_line_color=curses.color_pair(2))
+        self.init_frame(title=self._title, unfocused_line_color=curses.color_pair(2))
 
         self.scroll_area.calculate_trimmed_lines()
         lines = self.scroll_area.get_trimmed_lines()
@@ -654,6 +674,67 @@ class Scroll_Pane(core.Pane):
         ie.absorb()
         self.needs_drawing()
         return ie
+
+
+class Screen_Pane(core.Pane):
+    def __init__(self, stdscr, title=''):
+        super(Screen_Pane, self).__init__(stdscr, title=title)
+        self._last_focused_pane = None
+        self._screen = None
+        self._screen_builder = None
+
+
+    def assign_screen_builder(self, sb):
+        self._screen_builder = sb
+
+    def _init_screen(self):
+        if self._screen_builder is None:
+            raise Exception('Assign a screen builder before initializing the screen pane')
+        self._screen.build(self._screen_builder)
+        self._screen.init()
+        # self.needs_drawing()
+
+    def focus(self):
+        super(Screen_Pane, self).focus()
+        self._screen_builder.set_focus_location_from_object(self._last_focused_pane)
+        self._screen_builder.set_focus()
+
+    def unfocus(self):
+        super(Screen_Pane, self).unfocus()
+        self._last_focused_pane = self._screen_builder.get_focused_pane()
+        self._screen_builder.unfocus_all()
+    
+    def assign_win(self, win):
+        super(Screen_Pane, self).assign_win(win)
+        self._screen = screen.Screen(win, sub_screen = True)
+        self._init_screen()
+        self._screen.force_needs_drawing()
+
+    def process(self, current_time):
+        super(Screen_Pane, self).process(current_time)
+        self._screen.process(current_time)
+
+    def key_input(self, input_event):
+        input_event = super(Screen_Pane, self).key_input(input_event)
+        key = input_event.key
+        if key is None or self._focus == False:
+            return input_event
+
+        input_event = self._screen.key_input(input_event)
+        input_event = self._screen.give_key_to_screen_builder(input_event)
+
+        return input_event
+
+    def draw(self):
+        # if not self.get_needs_drawing():
+            # return
+        self.init_frame(title=self._title, unfocused_line_color=curses.color_pair(2), clear_interior=False)
+
+        super(Screen_Pane, self).draw()
+
+        self._screen.draw(0)
+
+    
 
 class Notification_Box(core.Pane):
     def __init__(self, stdscr, x=0, y=0, header='', right_aligned=False, loading_square=True, idle=True):

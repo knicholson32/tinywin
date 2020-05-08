@@ -34,11 +34,20 @@ class Drawable(Processable):
         self._needs_drawing = True
         self.win_has_been_assigned = False
 
+        self.awaiting_window_update = True
+
     def assign_win(self, win):
         self._win = win
         self._calc_win_coords()
         self.needs_drawing()
         self.win_has_been_assigned = True
+        self.awaiting_window_update = False
+
+    def window_size_update(self):
+        pass
+
+    def get_awaiting_window_update(self):
+        return self.awaiting_window_update
 
     def _calc_win_coords(self):
         if self._win is not None:
@@ -73,7 +82,7 @@ class Drawable(Processable):
         return ie
 
 class Pane(Drawable):
-    def __init__(self, stdscr, win=None, line_counter=0):
+    def __init__(self, stdscr, win=None, line_counter=0, title=''):
         super(Pane, self).__init__(win=win)
         self._stdscr = stdscr
         self._memory = {}
@@ -81,10 +90,13 @@ class Pane(Drawable):
         self.line_counter = line_counter
         self.border_width_reduction = 4
         self.border_height_reduction = 2
+        self._title = title
 
     def assign_win(self, win):
         super(Pane, self).assign_win(win)
 
+    def window_size_update(self):
+        super(Pane, self).window_size_update()
 
     def process(self, time):
         super(Pane, self).process(time)
@@ -104,9 +116,6 @@ class Pane(Drawable):
     def get_needs_drawing(self):
         return super(Pane, self).get_needs_drawing()
 
-    def set_focus(self, focus):
-        self._focus = focus
-        self.needs_drawing()
 
     def focus(self):
         self._focus = True
@@ -119,16 +128,26 @@ class Pane(Drawable):
     def get_focus(self):
         return self._focus
 
+    def set_title(self, title):
+        self._title = title
+
+    def get_title(self):
+        return self._title
+
+    def clear(self):
+        if self._win is not None:
+            self._win.clear()
+
     def _refresh(self):
         super(Pane, self)._refresh()
 
-    def init_frame(self, title='', border_color=None, unfocused_line_color=None, single_line=False, omit_border=False, single_line_x=0, single_line_y=0):
+    def init_frame(self, title='', clear_interior=True, border_color=None, unfocused_line_color=None, single_line=False, omit_border=False, single_line_x=0, single_line_y=0):
         if not single_line:
             self.omit_border = omit_border
             self.draw_top_border(title, omit_side_borders=omit_border, border_color=border_color, unfocused_line_color=unfocused_line_color)
             if not self.omit_border:
                 for i in range(1, self._h-2):
-                    self.draw_line_border(focused_line_color=border_color, unfocused_line_color=unfocused_line_color, line=i)
+                    self.draw_line_border(focused_line_color=border_color, reset_line=clear_interior, unfocused_line_color=unfocused_line_color, line=i)
                 self.draw_bottom_border(focused_line_color=border_color, unfocused_line_color=unfocused_line_color)
                 self.line_counter = 1
         else:
@@ -143,9 +162,9 @@ class Pane(Drawable):
             unfocused_line_color = focused_line_color
         if line is None:
             line = self.line_counter
-        if reset_line:
-            self._win.move(line, 0)
-            self._win.clrtoeol()
+        # if reset_line:
+        #     self._win.move(line, 0)
+        #     self._win.clrtoeol()
         if self._focus:
             self._win.addstr(line, 0, '│', focused_line_color)  # Default
             self._win.addstr(line, self._w-1, '│', focused_line_color)  # Default

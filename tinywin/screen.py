@@ -75,7 +75,7 @@ class TabChain(core.Processable):
         update_focus_callback(self.chain_order[selected_index])
         return True
 
-    def tab_back(self, update_focus_callback=None):
+    def tab_back(self, update_focus_callback=None, wrap=True):
         selected_pane = None
         selected_index = 0
         for i in range(0, len(self.chain_order)):
@@ -103,8 +103,9 @@ class TabChain(core.Processable):
         return True
 
 class Screen_Title(object):
-    def __init__(self, height, width, y, x, title, no_title=False, draw_lower=False, lower_y=-1):
+    def __init__(self, stdscr, height, width, y, x, title, no_title=False, draw_lower=False, lower_y=-1):
         super(Screen_Title, self).__init__()
+        self._stdscr = stdscr
         self._height = height
         self._width = width
         self._y = y
@@ -123,10 +124,10 @@ class Screen_Title(object):
         self._fillerl = ''.ljust(math.ceil((self._width-2)/2 - len(self._title)/2), '─')
         self._fillerr = ''.ljust(math.floor((self._width-2)/2 - len(self._title)/2), '─')
 
-        self._win = curses.newwin(self._height, self._width, self._y, self._x)
+        self._win = self._stdscr.derwin(self._height, self._width, self._y, self._x)
 
         if self._draw_lower:
-            self._lower_win = curses.newwin(self._height, self._width, self._lower_y, self._x)
+            self._lower_win = self._stdscr.derwin(self._height, self._width, self._lower_y, self._x)
 
     def draw(self):
         try:
@@ -142,10 +143,11 @@ class Screen_Title(object):
             pass
 
 class Screen_Builder(core.Processable):
-    def __init__(self, stdscr, x_divs, y_divs, title=None):
+    def __init__(self, stdscr, x_divs, y_divs, title=None, frameless=False):
         super(Screen_Builder, self).__init__()
 
         self._stdscr = stdscr
+        self._frameless = frameless
         # self._win = win
         self._x_divs = x_divs
         self._y_divs = y_divs
@@ -159,6 +161,7 @@ class Screen_Builder(core.Processable):
         self._title_text = title
 
         self.process_resize(init=True)
+
 
 
         self.current_focus = (0, 0)
@@ -184,8 +187,7 @@ class Screen_Builder(core.Processable):
             raise Exception('This screen already has a footer object')
         self._footer = core.Pane_Holder(footer, 0, 0, 0, 0)
 
-
-        win = curses.newwin(1,      self._w, self._h, 0)
+        win = self._stdscr.derwin(0, self._w, self._h, 0)
         self._footer.link_win(win)
 
         self._h = self._h - 1
@@ -266,11 +268,11 @@ class Screen_Builder(core.Processable):
 
         if ph.get_is_one_line():
             #                                      nlines,      ncols,                           begin_y,                                          begin_x
-            win = curses.newwin(                   1 - y_shift, w * self._x_per_block - x_shift, y * self._y_per_block + self._y_offset + y_shift, x * self._x_per_block+x_shift)
+            win = self._stdscr.derwin(             1 - y_shift, w * self._x_per_block - x_shift, y * self._y_per_block + self._y_offset + y_shift, x * self._x_per_block+x_shift)
             self.fill_in_pane_order(ph.get_pane(), 1 - y_shift, w * self._x_per_block - x_shift, y * self._y_per_block + self._y_offset + y_shift, x * self._x_per_block+x_shift)
         else:
             #                                      nlines,                          ncols,                           begin_y,                                          begin_x
-            win = curses.newwin(                   h * self._y_per_block - y_shift, w * self._x_per_block - x_shift, y * self._y_per_block + self._y_offset + y_shift, x * self._x_per_block+x_shift)
+            win = self._stdscr.derwin(             h * self._y_per_block - y_shift, w * self._x_per_block - x_shift, y * self._y_per_block + self._y_offset + y_shift, x * self._x_per_block+x_shift)
             self.fill_in_pane_order(ph.get_pane(), h * self._y_per_block - y_shift, w * self._x_per_block - x_shift, y * self._y_per_block + self._y_offset + y_shift, x * self._x_per_block+x_shift)
         ph.link_win(win)
         if save:
@@ -286,6 +288,8 @@ class Screen_Builder(core.Processable):
             raise Exception(f'No focus target at location ({x}, {y})')
 
     def set_focus_location_from_object(self, obj):
+        if obj is None:
+            return
         index = -1
         for p in range(0, len(self._panes)):
             if obj == self._panes[p].get_pane():
@@ -362,8 +366,14 @@ class Screen_Builder(core.Processable):
         tmp_ie.absorb()
         return tmp_ie
 
+    def get_focused_pane(self):
+        for p in self._panes:
+            if p.get_pane().get_focus() is True:
+                return p.get_pane()
+        return None
+
     def draw(self): # TODO: Make this a one-time draw instead of every frame
-        if self._Screen_Title is not None:
+        if self._frameless is not True and self._Screen_Title is not None:
             self._Screen_Title.draw()
 
     def process_resize(self, init=False):
@@ -376,8 +386,8 @@ class Screen_Builder(core.Processable):
 
         self._y_offset = 0
 
-        if self._title_text is not None:
-            self._Screen_Title = Screen_Title(1, self._w, 0, 0, self._title_text, draw_lower=True, lower_y=self._h-1)
+        if self._title_text is not None and self._frameless is not True:
+            self._Screen_Title = Screen_Title(self._stdscr, 1, self._w, 0, 0, self._title_text, draw_lower=True, lower_y=self._h-1)
             self._h = self._h - 2
             self._y_offset = 1
         else:
@@ -389,58 +399,26 @@ class Screen_Builder(core.Processable):
         if not init: # This is a resize that happened after the creation of the window
             # Save the current focused pane
             # raise Exception('resize')
-            (x, y) = self.current_focus
-            last_focused_pane = self._pane_order[y][x]
+
+            last_focused_object = self.get_focused_pane()
             self.unfocus_all()
 
             # Resize each pane:
             for ph in self.ph_list:
                 self.calculate_win_for_pane(ph, save=False)
-                # (x, y, w, h) = ph.get_coords()
 
-                # # Check that this pane will fit on the screen
-                # if x < 0 or y < 0:
-                #     raise Exception(f'Invalid pane coordinate')
-                # if x + w > self._x_divs:
-                #     raise Exception(f'Pane is too wide or overruns the bounds of the screen: {ph.get_pane().__class__} : x:{x+w} > x:{self._x_divs}')
-                # if y + h > self._y_divs:
-                #     # raise Exception(f'Pane is too tall or overruns the bounds of the screen: {ph.get_pane().__class__} : y:{y+h} > y:{self._y_divs}')
-                #     pass
+            for ph in self.ph_list:
+                ph.get_pane().window_size_update()
 
-                # y_shift = 0
-                # x_shift = 0
+            self.set_focus_location_from_object(last_focused_object)
+            last_focused_object.focus()
 
-                # if y > 0:
-                #     y_shift = -1
-
-                # if x > 0:
-                #     x_shift = 0
-
-                # if ph.get_is_one_line():
-                #     nlines = 1 - y_shift
-                #     ncols = w * self._x_per_block - x_shift
-                #     begin_y = y * self._y_per_block + self._y_offset + y_shift
-                #     begin_x = x * self._x_per_block+x_shift
-                #     #                                      nlines,      ncols,                           begin_y,                                          begin_x
-                #     # win = curses.newwin(                   1 - y_shift, w * self._x_per_block - x_shift, y * self._y_per_block + self._y_offset + y_shift, x * self._x_per_block+x_shift)
-                #     # self.fill_in_pane_order(ph.get_pane(), 1 - y_shift, w * self._x_per_block - x_shift, y * self._y_per_block + self._y_offset + y_shift, x * self._x_per_block+x_shift)
-                # else:
-                #     nlines = h * self._y_per_block - y_shift
-                #     ncols = w * self._x_per_block - x_shift
-                #     begin_y = y * self._y_per_block + self._y_offset + y_shift
-                #     begin_x = x * self._x_per_block+x_shift
-                #     #                                      nlines,                          ncols,                           begin_y,                                          begin_x
-                #     # win = curses.newwin(                   h * self._y_per_block - y_shift, w * self._x_per_block - x_shift, y * self._y_per_block + self._y_offset + y_shift, x * self._x_per_block+x_shift)
-                #     # self.fill_in_pane_order(ph.get_pane(), h * self._y_per_block - y_shift, w * self._x_per_block - x_shift, y * self._y_per_block + self._y_offset + y_shift, x * self._x_per_block+x_shift)
-
-                # ph.move_win(begin_y, begin_x)
-                # ph.resize_win(nlines, ncols)
-                # ph.refresh_assign_win()
-
-
+            for p in self._panes:
+                p.get_pane().needs_drawing()
+                p.get_pane().clear()
 
 class Screen(object):
-    def __init__(self, stdscr, exit_key='q', process_rate_ps=30, frame_rate_ps=15):
+    def __init__(self, stdscr, exit_key='q', process_rate_ps=30, frame_rate_ps=15, sub_screen=False):
         super(Screen, self).__init__()
 
         self._stdscr = stdscr
@@ -464,9 +442,12 @@ class Screen(object):
 
         self._ie = None
 
-        self._resize_pause = False
-
         self._force_close = False
+
+        self._recent_resize = False
+        self._resize_draw_frame_counter = 0
+
+        self._is_sub_screen = sub_screen
 
         self._screen_builder = None
 
@@ -481,33 +462,6 @@ class Screen(object):
                 self.drawable_objects.append(pane_obj)
             elif isinstance(pane_obj, core.Processable):
                 self.processable_objects.append(pane_obj)
-
-        # with open("Output.txt", "w") as text_file:
-        #     print('-:  ', end='', file=text_file)
-        #     for j in range(0, len(self._screen_builder._pane_order[0])):
-        #         print(f'{j} '.ljust(4, ' '), end='', file=text_file)
-        #     print('', file=text_file)
-        #     for i in range(0, len(self._screen_builder._pane_order)):
-        #         print(f'{i}: '.ljust(4, ' '),end='', file=text_file)
-        #         for j in range(0, len(self._screen_builder._pane_order[0])):
-        #             p = self._screen_builder._pane_order[i][j]
-        #             if p is None:
-        #                 print(f'0   ', end='', file=text_file)
-        #             else:
-        #                 print(f'{str(p)}   ', end='', file=text_file)
-        #         print('', file=text_file)
-        #     print(f'{(self._screen_builder._pane_order_x_len, self._screen_builder._pane_order_y_len)}', file=text_file)
-
-
-        # matrix = self._screen_builder._pane_order
-        # s = [[str(e) for e in row] for row in matrix]
-        # lens = [max(map(len, col)) for col in zip(*s)]
-        # fmt = ' '.join('{{:{}}}'.format(x) for x in lens)
-        # table = [fmt.format(*row) for row in s]
-        # output = '\n'.join(table)
-        # with open("Output.txt", "w") as text_file:
-        #     print(output, file=text_file)
-        #     print(f'{(self._screen_builder._pane_order_x_len, self._screen_builder._pane_order_y_len)}', file=text_file)
 
     def init(self):
         for p in self.processable_objects:
@@ -526,7 +480,7 @@ class Screen(object):
             p_list = []
             for p in panes:
                 p_list.append(p.get_pane())
-            self._screen_builder.add_tab_order(TabChain(*p_list))
+            self._screen_builder.add_tab_order(TabChain(*p_list, wrap=(not self._is_sub_screen)))
 
     def add_processable_objects(self, *obj):
         for o in obj:
@@ -564,6 +518,7 @@ class Screen(object):
         #TODO: Try using get_wch to see if we can capture more complex key inputs
         #TODO: Support mouse scrolling
         c = self._stdscr.getch()
+        
         # try:
             # c = self._stdscr.get_wch()
         # except curses.error:
@@ -576,8 +531,8 @@ class Screen(object):
         if c != -1:
             curses.flushinp()
         self._ie = self.key_input(self._ie)
-        if self._screen_builder is not None:
-            self._ie = self._screen_builder.key_input(self._ie)
+        
+        self._ie = self.give_key_to_screen_builder(self._ie)
         if self._ie is not None and self._ie.key == self._exit_key:
             return False
 
@@ -587,23 +542,32 @@ class Screen(object):
         self._last_action_time = current_time
         return True
 
+    def give_key_to_screen_builder(self, ie):
+        if self._screen_builder is not None:    
+            ie = self._screen_builder.key_input(ie)
+
+        return ie
+
     def process_resize(self):
         self._screen_builder.process_resize()
-        self._resize_pause = True
+        self._recent_resize = True
+        self._resize_draw_frame_counter = 0
 
     def key_input(self, ie):
         tmp_ie = ie
         if ie.key == curses.KEY_RESIZE:
             #TODO: Implement resize code
             self.process_resize()
-            for d in self.drawable_objects:
-                d.draw()
         else:
             for p in self.processable_objects:
                 tmp_ie = p.key_input(tmp_ie)
             for d in self.drawable_objects:
                 tmp_ie = d.key_input(tmp_ie)
         return tmp_ie
+
+    def force_needs_drawing(self):
+        for d in self.drawable_objects:
+            d.needs_drawing()
 
     def process(self, current_time):
         for p in self.processable_objects:
@@ -613,11 +577,21 @@ class Screen(object):
         self._last_process_time = current_time
 
     def draw(self, current_time):
-        if self._resize_pause is True:
-            self._resize_pause = False
-            return
+        if self._recent_resize is True:
+            self._resize_draw_frame_counter = self._resize_draw_frame_counter + 1
+            if self._resize_draw_frame_counter > 10:
+                for d in self.drawable_objects:
+                    if isinstance(d, core.Pane):
+                        d.needs_drawing()
+                self._resize_draw_frame_counter = 0
+                self._recent_resize = False
+            else:
+                self._last_draw_time = current_time
+                return
+
         for d in self.drawable_objects:
-            d.draw()
+            if not d.get_awaiting_window_update():
+                d.draw()
 
         if self._screen_builder is not None:
             self._screen_builder.draw()
