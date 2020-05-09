@@ -456,7 +456,7 @@ class Scroll_Pane(core.Pane):
             if self.mouse_state == curses.BUTTON1_PRESSED or self.mouse_state == curses.BUTTON1_CLICKED:
                 offset_y, _ = self._win.getbegyx()
                 header_offset = 1 if self._header_line is not None else 0
-                self.cursor(self._my - offset_y - math.ceil(self.border_height_reduction / 2) + self.scroll_area.mouse_y_offset - header_offset)
+                self.cursor(self._my - offset_y + self.scroll_area.mouse_y_offset - header_offset)
                 self.needs_drawing()
                 input_event.absorb()
             elif self.mouse_state == helpers.REPORT_MOUSE_POSITION: # Mouse wheel down
@@ -733,7 +733,7 @@ class Screen_Pane(core.Pane):
             raise Exception('Configure a layout before assigning a window')
 
         if self._border_style == core.Screen_Border_Style.FULL:
-            self._sub_win = self._win.derwin(self._h - 1, self._w - 1, 0, )
+            self._sub_win = self._win.derwin(self._h - 1, self._w - 2, 1, 1)
         elif self._border_style == core.Screen_Border_Style.BORDERLESS:
             self._sub_win = self._win
         elif self._border_style == core.Screen_Border_Style.NO_SIDES:
@@ -785,7 +785,6 @@ class Screen_Pane(core.Pane):
             raise Exception('Configure the layout before adding panes: "self.configure_layout(width, height)"')
         self._layout.add_pane(pane, x, y, width, height)
     
-
 class Notification_Box(core.Pane):
     def __init__(self, x=0, y=0, header='', right_aligned=False, loading_square=True, idle=True):
         super(Notification_Box, self).__init__()

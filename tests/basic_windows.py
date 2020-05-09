@@ -8,7 +8,7 @@ from tinywin import screen, panes, core, helpers
 
 class Test_Pane(panes.Scroll_Pane):
     def __init__(self, notification_box):
-        super(Test_Pane, self).__init__(panes.Scroll_Pane_Type.MULTI_SELECT, border_style=core.Screen_Border_Style.NO_SIDES)
+        super(Test_Pane, self).__init__(panes.Scroll_Pane_Type.MULTI_SELECT, border_style=core.Screen_Border_Style.FULL)
 
         self._notification_box = notification_box
 
@@ -19,8 +19,18 @@ class Test_Pane(panes.Scroll_Pane):
 
         self.set_contents(l)
 
-    # def draw(self):
-        # super(Test_Pane, self).draw()
+class Test_Pane_Sub(panes.Scroll_Pane):
+    def __init__(self, notification_box):
+        super(Test_Pane_Sub, self).__init__(panes.Scroll_Pane_Type.MULTI_SELECT, border_style=core.Screen_Border_Style.FULL)
+
+        self._notification_box = notification_box
+
+        l = []
+        for d in range(0, 50):
+            t = core.Text_Line('This is a test! (sub)', curses.color_pair(7), f' {d}', curses.color_pair(2))
+            l.append(t)
+
+        self.set_contents(l)
 
 
 class Test_Pane2(panes.Scroll_Pane):
@@ -104,19 +114,38 @@ class Main_Screen(panes.Screen_Pane):
         super(Main_Screen, self).assign_win(win)
         
 
-class Main_Screen_simple(panes.Screen_Pane):
+class Sub_Screen(panes.Screen_Pane):
     def __init__(self):
-        super(Main_Screen_simple, self).__init__(
-            title='Main Screen',
-            border_style=core.Screen_Border_Style.BORDERLESS)
+        super(Sub_Screen, self).__init__(
+            title='Sub Screen',
+            border_style=core.Screen_Border_Style.NO_SIDES)
 
     def assign_win(self, win):
 
         notification_box = panes.Notification_Box()
-        test_pane = Test_Pane(notification_box)
+        # test_pane = Test_Pane(notification_box)
 
         self.configure_layout(1, 1)
-        self.add_pane(test_pane,  0,       0,       1,     1)
+        self.add_pane(Test_Pane_Sub(notification_box),  0,       0,       1,     1)
+
+        super(Sub_Screen, self).assign_win(win)
+
+class Main_Screen_simple(panes.Screen_Pane):
+    def __init__(self):
+        super(Main_Screen_simple, self).__init__(
+            title='Main Screen',
+            border_style=core.Screen_Border_Style.FULL)
+
+    def assign_win(self, win):
+
+        notification_box = panes.Notification_Box()
+        # test_pane = Test_Pane(notification_box)
+
+        self.configure_layout(2, 2)
+        self.add_pane(Test_Pane(notification_box),  0,       0,       1,     1)
+        self.add_pane(Test_Pane(notification_box),  0,       1,       1,     1)
+        self.add_pane(Test_Pane(notification_box),  1,       0,       1,     1)
+        self.add_pane(Test_Pane(notification_box),  1,       1,       1,     1)
 
         super(Main_Screen_simple, self).assign_win(win)
 

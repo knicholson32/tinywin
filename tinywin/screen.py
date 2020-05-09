@@ -217,8 +217,8 @@ class Layout(core.Processable):
         y_shift = 0
         x_shift = 0
 
-        if y > 0:
-            y_shift = -1
+        # if y > 0:
+        #     y_shift = -1
 
         if x > 0:
             x_shift = 0
