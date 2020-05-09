@@ -156,9 +156,9 @@ class Layout(core.Processable):
         self._stdscr = win
         self.process_resize(init=True)
 
-    def calc_per_block(self):
-        self._y_per_block = math.floor(self._h / self._y_divs)
-        self._x_per_block = math.floor(self._w / self._x_divs)
+    def calc_per_block(self, height_reduction=0, width_reduction=1):
+        self._y_per_block = math.floor((self._h - height_reduction) / self._y_divs)
+        self._x_per_block = math.floor((self._w - width_reduction) / self._x_divs)
 
     def unfocus_all(self):
         for p in self._panes:
@@ -172,21 +172,8 @@ class Layout(core.Processable):
         else:
             return self._panes
 
-    # def add_footer(self, footer):
-    #     if self._footer is not None:
-    #         raise Exception('This screen already has a footer object')
-    #     self._footer = core.Pane_Holder(footer, 0, 0, 0, 0)
-
-    #     if self._is_sub_screen is True:
-    #         win = self._stdscr.derwin(0, self._w, self._h - 1, 0)
-    #         self._footer.link_win(win)
-    #         self._h = self._h - 1
-    #     else:
-    #         win = self._stdscr.derwin(0, self._w, self._h, 0)
-    #         self._footer.link_win(win)
-    #         self._h = self._h - 1
-        
-    #     self.calc_per_block()
+    def assign_footer(self, footer):
+        self._footer = core.Pane_Holder(footer, 0, 0, 0, 0)
 
     def add_tab_order(self, tab_order):
         self._tab_order = tab_order
@@ -196,6 +183,14 @@ class Layout(core.Processable):
         self._panes.append(ph)
 
     def calculate_all_pane_windows(self):
+
+        if self._footer is not None:
+            win = self._stdscr.derwin(1, self._w, self._h - 1, 0)
+            self._footer.link_win(win)
+            self._h = self._h - 1
+
+            self.calc_per_block(height_reduction=1)
+
         for ph in self._panes:
             new_win = self.calculate_win_for_pane(ph)
             ph.link_win(new_win)
@@ -321,10 +316,10 @@ class Layout(core.Processable):
     def process_resize(self, init=False):
         self._h, self._w = self._stdscr.getmaxyx()
 
-        self._pane_order_x_len = self._w
-        self._pane_order_y_len = self._h
-        self._pane_y_offset = -1
-        self._pane_order = [[None]*self._pane_order_x_len for _ in range(self._pane_order_y_len-1)]
+        # self._pane_order_x_len = self._w
+        # self._pane_order_y_len = self._h
+        # self._pane_y_offset = -1
+        # self._pane_order = [[None]*self._pane_order_x_len for _ in range(self._pane_order_y_len-1)]
 
         self._y_offset = 0
 

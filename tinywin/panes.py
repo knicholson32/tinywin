@@ -784,8 +784,15 @@ class Screen_Pane(core.Pane):
         if self._layout is None:
             raise Exception('Configure the layout before adding panes: "self.configure_layout(width, height)"')
         self._layout.add_pane(pane, x, y, width, height)
+
+    def assign_footer(self, footer):
+        if not isinstance(footer, core.Footer):
+            raise Exception(f'Footer assignment object must be a Footer Object: {footer}')
+
+        self._layout.assign_footer(footer)
+
     
-class Notification_Box(core.Pane):
+class Notification_Box(core.Footer):
     def __init__(self, x=0, y=0, header='', right_aligned=False, loading_square=True, idle=True):
         super(Notification_Box, self).__init__()
         self._notification_start_time = -1

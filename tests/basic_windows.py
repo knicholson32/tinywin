@@ -109,7 +109,7 @@ class Main_Screen(panes.Screen_Pane):
         self.add_pane(test_pane2,        1,       0,       1,     1)
         self.add_pane(test_pane2,        1,       0,       1,     1)
 
-        # screen_builder.add_footer(notification_box)
+        self.assign_footer(notification_box)
 
         super(Main_Screen, self).assign_win(win)
         
@@ -134,7 +134,7 @@ class Main_Screen_simple(panes.Screen_Pane):
     def __init__(self):
         super(Main_Screen_simple, self).__init__(
             title='Main Screen',
-            border_style=core.Screen_Border_Style.FULL)
+            border_style=core.Screen_Border_Style.NO_SIDES)
 
     def assign_win(self, win):
 
@@ -146,6 +146,8 @@ class Main_Screen_simple(panes.Screen_Pane):
         self.add_pane(Test_Pane(notification_box),  0,       1,       1,     1)
         self.add_pane(Test_Pane(notification_box),  1,       0,       1,     1)
         self.add_pane(Test_Pane(notification_box),  1,       1,       1,     1)
+
+        self.assign_footer(notification_box)
 
         super(Main_Screen_simple, self).assign_win(win)
 

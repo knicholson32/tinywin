@@ -317,6 +317,11 @@ class Pane(Drawable):
     def reset_line_counter(self):
         self.line_counter = 0
 
+class Footer(Pane):
+    def __init__(self):
+        super(Footer, self).__init__(border_style=Screen_Border_Style.BORDERLESS)
+
+    
 class Pane_Holder(Processable):
     def __init__(self, pane, start_x, start_y, width, height, can_be_focused=True, focus_key=None, one_line=False, fixed_to=None, unfocus_callback=None):
         self._pane = pane
