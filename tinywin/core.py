@@ -1,14 +1,15 @@
 import curses
+import math
 from enum import Enum
 
 from tinywin import helpers
 
 
-class Screen_Border_Mode(Enum):
-    BORDERLESS = 1
-    FULL_BORDER = 2
-    LIGHT_BORDER = 3
-    THIN_BORDER = 4
+class Screen_Border_Style(Enum):
+    BORDERLESS = 1       # No border around the window
+    FULL = 2      # Full square border around the window
+    NO_SIDES = 3  # Border with only top and bottom lines
+    # THIN_BORDER = 4
 
 class PaneError(Exception):
     def __init__(self, msg):
@@ -35,18 +36,19 @@ class Processable(object):
         return ie
 
 class Drawable(Processable):
-    def __init__(self, win=None):
+    def __init__(self, ):
         super(Drawable, self).__init__()
-        self._win = win
-        self._calc_win_coords()
+        self._win = None
+        self._base_win = None
+        self._calc_base_win_coords()
         self._needs_drawing = True
         self.win_has_been_assigned = False
 
         self.awaiting_window_update = True
 
     def assign_win(self, win):
-        self._win = win
-        self._calc_win_coords()
+        self._base_win = win
+        self._calc_base_win_coords()
         self.needs_drawing()
         self.win_has_been_assigned = True
         self.awaiting_window_update = False
@@ -57,12 +59,12 @@ class Drawable(Processable):
     def get_awaiting_window_update(self):
         return self.awaiting_window_update
 
-    def _calc_win_coords(self):
-        if self._win is not None:
-            self._h, self._w = self._win.getmaxyx()
+    def _calc_base_win_coords(self):
+        if self._base_win is not None:
+            self._base_h, self._base_w = self._base_win.getmaxyx()
         else:
-            self._h = None
-            self._w = None
+            self._base_h = None
+            self._base_w = None
 
     def process(self, time):
         super(Drawable, self).process(time)
@@ -83,25 +85,66 @@ class Drawable(Processable):
         return self._needs_drawing
 
     def _refresh(self):
-        self._win.refresh()
+        self._base_win.refresh()
         self._needs_drawing = False
 
     def key_input(self, ie):
         return ie
 
 class Pane(Drawable):
-    def __init__(self, stdscr, win=None, line_counter=0, title=''):
-        super(Pane, self).__init__(win=win)
-        self._stdscr = stdscr
+    def __init__(self, line_counter=0, title='', border_style=Screen_Border_Style.FULL):
+        super(Pane, self).__init__()
+        # self._stdscr = stdscr
         self._memory = {}
         self._focus = False
         self.line_counter = line_counter
-        self.border_width_reduction = 4
-        self.border_height_reduction = 2
         self._title = title
+        self._border_style = border_style
+
+        # if self._border_style == Screen_Border_Style.FULL:
+        #    self.border_width_reduction = 4
+        #    self.border_height_reduction = 1
+        # elif self._border_style == Screen_Border_Style.NO_SIDES:
+        #     self.border_width_reduction = 2
+        #     self.border_height_reduction = 2
+        # else:
+        #     raise NotImplementedError(f'Border style not implemented: {self._border_style}')
+
+    
+        # self.border_width_reduction = 0
+        # self.border_height_reduction = 0
 
     def assign_win(self, win):
         super(Pane, self).assign_win(win)
+
+        if self._border_style == Screen_Border_Style.NO_SIDES:
+            self._lower_line = '─'*(self._base_w-2)
+            if self._title == '':
+                self._title_line = ''
+            else:
+                self._title_line = ' ' + self._title + ' '
+            self._fillerl = ''.ljust(math.ceil((self._base_w-2)/2 - len(self._title_line)/2), '─')
+            self._fillerr = ''.ljust(math.floor((self._base_w-2)/2 - len(self._title_line)/2), '─')
+            self._upper_win = self._base_win.derwin(0, self._base_w, 0, 0)
+            self._lower_win = self._base_win.derwin(0, self._base_w, self._base_h-1, 0)
+
+            self._win = self._base_win.derwin(self._base_h - 1, self._base_w, 1, 0)
+
+        elif self._border_style == Screen_Border_Style.FULL:
+            self._win = self._base_win.derwin(self._base_h - 1, self._base_w, 0, 0)
+        elif self._border_style == Screen_Border_Style.BORDERLESS:
+            self._win = self._base_win
+        else:
+            raise NotImplementedError(f'Border style not implemented: {self._border_style}')
+
+        self._calc_win_coords()
+
+    def _calc_win_coords(self):
+        if self._win is not None:
+            self._h, self._w = self._win.getmaxyx()
+        else:
+            self._h = None
+            self._w = None
 
     def window_size_update(self):
         super(Pane, self).window_size_update()
@@ -109,8 +152,32 @@ class Pane(Drawable):
     def process(self, time):
         super(Pane, self).process(time)
 
+    def draw_border(self):
+        self.line_counter = 0
+        if self._border_style == Screen_Border_Style.FULL:
+            self.init_frame(title=self._title, unfocused_line_color=curses.color_pair(2), clear_interior=False)
+        elif self._border_style == Screen_Border_Style.NO_SIDES:
+            try:
+                # self._win.clear()
+                # self._win.refresh()
+                self._upper_win.addstr(0, 1, self._fillerl, curses.color_pair(2))
+                self._upper_win.addstr(0, 1 + len(self._fillerl), self._title_line, curses.color_pair(1))
+                self._upper_win.addstr(0, 1 + len(self._fillerl) + len(self._title_line), self._fillerr, curses.color_pair(2))
+                self._upper_win.refresh()
+                self._lower_win.addstr(0, 1, self._lower_line, curses.color_pair(2))
+                self._lower_win.refresh()
+            except curses.error:
+                pass
+        elif self._border_style == Screen_Border_Style.BORDERLESS:
+            pass    
+        else:
+            raise NotImplementedError(f'Border style not implemented: {self._border_style}')
+
     def draw(self):
         super(Pane, self).draw()
+        self._win.refresh()
+        
+        # self.draw_border()
 
     def resize(self, nlines, ncols):
         super(Pane, self).resize(nlines, ncols)
@@ -123,7 +190,6 @@ class Pane(Drawable):
 
     def get_needs_drawing(self):
         return super(Pane, self).get_needs_drawing()
-
 
     def focus(self):
         self._focus = True
@@ -146,22 +212,26 @@ class Pane(Drawable):
         if self._win is not None:
             self._win.clear()
 
+    def refresh(self):
+        self._refresh()
+
     def _refresh(self):
         super(Pane, self)._refresh()
+        self._win.refresh()
 
     def init_frame(self, title='', clear_interior=True, border_color=None, unfocused_line_color=None, single_line=False, omit_border=False, single_line_x=0, single_line_y=0):
         if not single_line:
             self.omit_border = omit_border
             self.draw_top_border(title, omit_side_borders=omit_border, border_color=border_color, unfocused_line_color=unfocused_line_color)
             if not self.omit_border:
-                for i in range(1, self._h-2):
+                for i in range(1, self._base_h-1):
                     self.draw_line_border(focused_line_color=border_color, reset_line=clear_interior, unfocused_line_color=unfocused_line_color, line=i)
                 self.draw_bottom_border(focused_line_color=border_color, unfocused_line_color=unfocused_line_color)
                 self.line_counter = 1
         else:
             self.line_counter = 0
-            self._win.move(single_line_y, single_line_x)
-            self._win.clrtoeol()
+            self._base_win.move(single_line_y, single_line_x)
+            self._base_win.clrtoeol()
 
     def draw_line_border(self, focused_line_color=None, unfocused_line_color=None, reset_line=True, line=None):
         if focused_line_color is None:
@@ -171,14 +241,14 @@ class Pane(Drawable):
         if line is None:
             line = self.line_counter
         if reset_line:
-            self._win.move(line, 0)
-            self._win.clrtoeol()
+            self._base_win.move(line, 0)
+            self._base_win.clrtoeol()
         if self._focus:
-            self._win.addstr(line, 0, '│', focused_line_color)  # Default
-            self._win.addstr(line, self._w-1, '│', focused_line_color)  # Default
+            self._base_win.addstr(line, 0, '│', focused_line_color)  # Default
+            self._base_win.addstr(line, self._base_w-1, '│', focused_line_color)  # Default
         else:
-            self._win.addstr(line, 0, '│', unfocused_line_color)
-            self._win.addstr(line, self._w-1, '│', unfocused_line_color)
+            self._base_win.addstr(line, 0, '│', unfocused_line_color)
+            self._base_win.addstr(line, self._base_w-1, '│', unfocused_line_color)
 
     def key_input(self, input_event):
         # if not self._focus:
@@ -196,24 +266,26 @@ class Pane(Drawable):
         return input_event
 
     def draw_top_border(self, _title, focused_title_color=None, omit_side_borders=False, border_color=None, unfocused_line_color=None):
-        self._win.move(0, 0)
-        self._win.clrtoeol()
+        self._base_win.move(0, 0)
+        self._base_win.clrtoeol()
         if omit_side_borders:
-            helpers.title(self._win, 0, _title, self._focus, unfocused_line_color=unfocused_line_color, focused_line_color=border_color, focused_title_color=focused_title_color, omit_side_borders=True)
+            helpers.title(self._base_win, 0, _title, self._focus, unfocused_line_color=unfocused_line_color, focused_line_color=border_color, focused_title_color=focused_title_color, omit_side_borders=True)
         else:
-            helpers.title(self._win, 0, _title, self._focus, focused_title_color=focused_title_color, focused_line_color=border_color, unfocused_line_color=unfocused_line_color, omit_side_borders=False)
+            helpers.title(self._base_win, 0, _title, self._focus, focused_title_color=focused_title_color, focused_line_color=border_color, unfocused_line_color=unfocused_line_color, omit_side_borders=False)
 
     def draw_bottom_border(self, focused_line_color=None, unfocused_line_color=None):
         if focused_line_color is None:
             focused_line_color = curses.color_pair(1)  # Default
         if unfocused_line_color is None:
             unfocused_line_color = focused_line_color
-        self._win.move(self._h - 2, 0)
-        self._win.clrtoeol()
+        self._base_win.move(self._base_h - 1, 0)
+        self._base_win.clrtoeol()
         if self._focus:
-            self._win.addstr(self._h - 2, 0, '└' + ''.center(self._w-2, '─') + '┘', focused_line_color)
+            self._base_win.addstr(self._base_h - 1, 0, '└' + ''.center(self._base_w-2, '─'), focused_line_color)
+            self._base_win.insnstr(self._base_h - 1, self._base_w - 1, '┘', 1, focused_line_color)
         else:
-            self._win.addstr(self._h - 2, 0, '└' + ''.center(self._w-2, '─') + '┘', unfocused_line_color)
+            self._base_win.addstr(self._base_h - 1, 0, '└' + ''.center(self._base_w-2, '─'), unfocused_line_color)
+            self._base_win.insnstr(self._base_h - 1, self._base_w - 1, '┘', 1, unfocused_line_color)
 
     def _addstr_text_line(self, y, x, text_line):
         text_line.output_to_window(self._win, y, x)
@@ -224,7 +296,10 @@ class Pane(Drawable):
         else:
             if color is None:
                 color = curses.color_pair(1)
-            self._win.addstr(self.line_counter, x + 2, string, color)  # Move over one place to make space for the border
+            try:
+                self._win.addstr(self.line_counter, x + 2, string, color)  # Move over one place to make space for the border
+            except:
+                raise Exception(f'{self.line_counter} {self._h}, {x+2} {self._w}')
         if inc:
             self.line_counter = self.line_counter + 1
 

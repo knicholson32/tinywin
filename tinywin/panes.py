@@ -269,13 +269,13 @@ class Scroll_Pane(core.Pane):
 
     """
 
-    def __init__(self, stdscr, scroll_type, header=None, footer=None, title=''):
-        super(Scroll_Pane, self).__init__(stdscr, title=title)
+    def __init__(self, scroll_type, header=None, footer=None, title='', border_style=core.Screen_Border_Style.FULL):
+        super(Scroll_Pane, self).__init__(title=title, border_style=border_style)
 
         self._scroll_type = scroll_type
 
-        self._overall_width_reduction = self.border_width_reduction
-        self._overall_height_reduction = self.border_height_reduction
+        self._overall_width_reduction = 0
+        self._overall_height_reduction = 0
         self._header_width_reduction = self._overall_width_reduction
 
         self.set_header_line(header)
@@ -339,9 +339,9 @@ class Scroll_Pane(core.Pane):
         self._footer_line = footer_line
         if self._footer_line is not None:
             if self._header_line is not None:
-                self._overall_height_reduction = self.border_height_reduction + 2
+                self._overall_height_reduction = 2
             else:
-                self._overall_height_reduction = self.border_height_reduction + 1
+                self._overall_height_reduction = 1
 
             if not isinstance(self._footer_line, core.Text_Line):
                 self._footer_line = core.Text_Line(self._footer_line, None)
@@ -378,7 +378,7 @@ class Scroll_Pane(core.Pane):
         if self._scroll_type == Scroll_Pane_Type.SINGLE_SELECT or self._scroll_type == Scroll_Pane_Type.MULTI_SELECT or self._scroll_type == Scroll_Pane_Type.CURSOR_ONLY:
             self.num_pad_len = len(str(self.z))
             self.num_pad_len_width = self.num_pad_len + 2
-            self._overall_width_reduction = self.border_width_reduction + self._selection_width_reduction + self.num_pad_len_width
+            self._overall_width_reduction = self._selection_width_reduction + self.num_pad_len_width
         if self.scroll_area is not None:
             self.scroll_area.update_lines(self._scroll_contents)
             if self._cursor is not None:
@@ -508,7 +508,8 @@ class Scroll_Pane(core.Pane):
     def draw(self):
         if not self.get_needs_drawing():
             return
-        self.init_frame(title=self._title, unfocused_line_color=curses.color_pair(2))
+        self.draw_border()
+        # self.init_frame(title=self._title, unfocused_line_color=curses.color_pair(2))
 
         self.scroll_area.calculate_trimmed_lines()
         lines = self.scroll_area.get_trimmed_lines()
@@ -544,6 +545,7 @@ class Scroll_Pane(core.Pane):
                 s = l.data['selected']
 
                 selected_color_mod = curses.A_REVERSE if s else 0
+
 
                 self.addstr_auto(0, self.cursor_symbol if c else self.cursor_no_symbol, curses.color_pair(1) | selected_color_mod, inc=False)
 
@@ -678,82 +680,115 @@ class Scroll_Pane(core.Pane):
 # TODO: Finish allowing specific border modes to be set with set_border_mode
 
 class Screen_Pane(core.Pane):
-    def __init__(self, stdscr, title=''):
-        super(Screen_Pane, self).__init__(stdscr, title=title)
-        self._stdscr = stdscr
+    def __init__(self, title='', border_style=core.Screen_Border_Style.NO_SIDES):
+        super(Screen_Pane, self).__init__(title=title, border_style=border_style)
         self._last_focused_pane = None
+        self._win = None
+        self._sub_win = None
         self._screen = None
-        self._screen_builder = None
+        self._layout = None
         self._top_level = False
-
-        self._border_mode = core.Screen_Border_Mode.FULL_BORDER
 
     def set_border_mode(self, mode):
         self._border_mode = mode
 
-    def run_as_top_level(self):
+    def run_as_top_level(self, stdscr):
+        # h, w = stdscr.getmaxyx()
+        # try:
+        #     # Check to see if we can write to the bottom right space. If not, we need
+        #     # to shrink the window to account for space left on the last line
+        #     stdscr.move(h-1, w-1)
+        #     stdscr.addstr(' ')
+        # except:
+        #     # Resize the screen to remove the last line
+        #     stdscr.resize(h-1, w)
+        self._stdscr = stdscr
         self._top_level = True
-        self.assign_win(self._stdscr)
+        self.assign_win(stdscr)
+        self._screen.add_drawable_object_to_begining_of_queue(self)
         interacting = True
         while interacting:
             interacting = self._screen.frame()
 
-    def assign_screen_builder(self, sb):
-        self._screen_builder = sb
-
-    def _init_screen(self):
-        if self._screen_builder is None:
-            raise Exception('Assign a screen builder before initializing the screen pane')
-        self._screen.build(self._screen_builder)
-        self._screen.init()
-        # self.needs_drawing()
-
     def focus(self):
         super(Screen_Pane, self).focus()
-        self._screen_builder.set_focus_location_from_object(self._last_focused_pane)
-        self._screen_builder.set_focus()
+        if self._last_focused_pane is not None:
+            self._last_focused_pane.focus()
+        else:
+            self._layout.focus_default()
+        # self._layout.set_focus_location_from_object(self._last_focused_pane)
+        # self._layout.set_focus()
 
     def unfocus(self):
         super(Screen_Pane, self).unfocus()
-        self._last_focused_pane = self._screen_builder.get_focused_pane()
-        self._screen_builder.unfocus_all()
+        self._last_focused_pane = self._layout.get_focused_pane()
+        self._layout.unfocus_all()
     
+    def force_refresh(self):
+        self.assign_win(self._win)
+
     def assign_win(self, win):
         super(Screen_Pane, self).assign_win(win)
-        title = '' if not self._top_level else self._title
+        if self._layout is None:
+            raise Exception('Configure a layout before assigning a window')
+
+        if self._border_style == core.Screen_Border_Style.FULL:
+            self._sub_win = self._win.derwin(self._h - 1, self._w - 1, 0, )
+        elif self._border_style == core.Screen_Border_Style.BORDERLESS:
+            self._sub_win = self._win
+        elif self._border_style == core.Screen_Border_Style.NO_SIDES:
+            self._sub_win = self._win.derwin(self._h - 1, self._w, 0, 0)
+        else:
+            raise NotImplementedError(f'Border style not implemented: {self._border_style}')
+
+
+        self._layout.assign_win(self._sub_win)
+
         self._screen = screen.Screen(win, sub_screen=(not self._top_level))
-        self._init_screen()
+        self._screen.build(self._layout)
         self._screen.force_needs_drawing()
 
     def process(self, current_time):
+        if self._top_level is False:
+            self._screen.process(current_time)
+
         super(Screen_Pane, self).process(current_time)
-        self._screen.process(current_time)
 
     def key_input(self, input_event):
         input_event = super(Screen_Pane, self).key_input(input_event)
         key = input_event.key
         if key is None or self._focus == False:
             return input_event
-
-        input_event = self._screen.key_input(input_event)
-        input_event = self._screen.give_key_to_screen_builder(input_event)
-
-        return input_event
+        return self._screen.key_input(input_event)
 
     def draw(self):
+        # TODO: Assess whether or not we should check if this pane needs drawing. If so, we need
+        # to know if any of the children panes need drawing too.
         # if not self.get_needs_drawing():
             # return
-        self.init_frame(title=self._title, unfocused_line_color=curses.color_pair(2), clear_interior=False)
 
+        # self.init_frame(title=self._title, unfocused_line_color=curses.color_pair(2), clear_interior=False)
+
+        self.draw_border()
+
+        if self._top_level is False:
+            self._screen.draw()
         super(Screen_Pane, self).draw()
 
-        self._screen.draw(0)
 
+    def configure_layout(self, width, height):
+        self._layout = screen.Layout()
+        self._layout.set_size(width, height)
+
+    def add_pane(self, pane, x, y, width, height):
+        if self._layout is None:
+            raise Exception('Configure the layout before adding panes: "self.configure_layout(width, height)"')
+        self._layout.add_pane(pane, x, y, width, height)
     
 
 class Notification_Box(core.Pane):
-    def __init__(self, stdscr, x=0, y=0, header='', right_aligned=False, loading_square=True, idle=True):
-        super(Notification_Box, self).__init__(stdscr)
+    def __init__(self, x=0, y=0, header='', right_aligned=False, loading_square=True, idle=True):
+        super(Notification_Box, self).__init__()
         self._notification_start_time = -1
         self._notification_timeout = -1
         self._notification_text = ''
@@ -858,8 +893,8 @@ class Notification_Box(core.Pane):
         self.needs_drawing()
 
 class Menu_Pane(core.Pane):
-    def __init__(self, stdscr, *args, subtle=False):
-        super(Menu_Pane, self).__init__(stdscr)
+    def __init__(self, *args, subtle=False):
+        super(Menu_Pane, self).__init__()
         self._menu_items = []
         self._selected_menu_item = -1
         self._last_selected_menu_item = -1
