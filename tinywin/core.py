@@ -1,5 +1,6 @@
 import curses
 import math
+import logging
 from enum import Enum
 
 from tinywin import helpers
@@ -28,6 +29,7 @@ class Init(object):
 class Processable(object):
     def __init__(self):    
         super(Processable, self).__init__()
+        self._logging = logging.getLogger('Processable')
 
     def process(self, time):
         pass
@@ -44,12 +46,16 @@ class Drawable(Processable):
         self._needs_drawing = True
         self.win_has_been_assigned = False
 
+        self._draw_reasons = []
+
         self.awaiting_window_update = True
+
+        self._logging = logging.getLogger('Drawable')
 
     def assign_win(self, win):
         self._base_win = win
         self._calc_base_win_coords()
-        self.needs_drawing()
+        self.needs_drawing(reason='window assignment')
         self.win_has_been_assigned = True
         self.awaiting_window_update = False
 
@@ -76,17 +82,28 @@ class Drawable(Processable):
     def resize(self, nlines, ncols):
         if win is not None:
             win.resize(nlines, ncols)
-        self.needs_drawing()
+        self.needs_drawing(reason='resize')
 
-    def needs_drawing(self):
+    def needs_drawing(self, reason=''):
         self._needs_drawing = True
+        if reason != '':
+            self._draw_reasons.append(reason)
 
     def get_needs_drawing(self):
         return self._needs_drawing
 
+    def get_draw_reasons(self):
+        return '; '.join(self._draw_reasons)
+
     def _refresh(self):
         self._base_win.refresh()
         self._needs_drawing = False
+        reasons = self.get_draw_reasons()
+        if len(reasons) == 0:
+            self._logging.debug(f'refresh: {self} | no reasons given')
+        else:
+            self._logging.debug(f'refresh: {self} | reasons: {self.get_draw_reasons()}')
+        self._draw_reasons = []
 
     def key_input(self, ie):
         return ie
@@ -101,6 +118,8 @@ class Pane(Drawable):
         self._title = title
         self._border_style = border_style
 
+        self._logging = logging.getLogger('Pane')
+
         # if self._border_style == Screen_Border_Style.FULL:
         #    self.border_width_reduction = 4
         #    self.border_height_reduction = 1
@@ -114,9 +133,12 @@ class Pane(Drawable):
         # self.border_width_reduction = 0
         # self.border_height_reduction = 0
 
+    # def __str__(self):
+        # return self.__class__.__name__ + self._title
+
     def assign_win(self, win):
         super(Pane, self).assign_win(win)
-
+        self._logging.debug(f'assign_win: {self} {win}')
         if self._border_style == Screen_Border_Style.NO_SIDES:
             self._lower_line = '─'*(self._base_w-2)
             if self._title == '':
@@ -185,19 +207,19 @@ class Pane(Drawable):
     def add_focus_cursor_data(self, data):
         self.focus_cursor_data = data
 
-    def needs_drawing(self):
-        super(Pane, self).needs_drawing()
+    def needs_drawing(self, reason=''):
+        super(Pane, self).needs_drawing(reason=reason)
 
     def get_needs_drawing(self):
         return super(Pane, self).get_needs_drawing()
 
     def focus(self):
         self._focus = True
-        self.needs_drawing()
+        self.needs_drawing(reason='focus=true')
 
     def unfocus(self):
         self._focus = False
-        self.needs_drawing()
+        self.needs_drawing(reason='focus=false')
 
     def get_focus(self):
         return self._focus

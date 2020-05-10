@@ -7,3 +7,4 @@ device_data.json
 /dist
 *.egg-info
 **no_include.py
+*.log

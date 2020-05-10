@@ -1,5 +1,6 @@
 import curses
 import math
+import logging
 from enum import Enum
 
 from tinywin import core, helpers, screen
@@ -702,6 +703,13 @@ class Screen_Pane(core.Pane):
         # except:
         #     # Resize the screen to remove the last line
         #     stdscr.resize(h-1, w)
+
+        # FORMAT = '%(asctime)-15s %(clientip)s %(user)-8s %(message)s'
+        FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
+        logging.basicConfig(format=FORMAT, filename='tinywin.log', level=logging.DEBUG)
+        logging.info('Started logging session')
+
+
         self._stdscr = stdscr
         self._top_level = True
         self.assign_win(stdscr)
@@ -836,7 +844,7 @@ class Notification_Box(core.Footer):
             self._notification_text = ''
             self._clear = True
             self.needs_drawing()
-        elif self._loading_square:
+        elif self._loading_square and not self._loading_square_done:
             cur_time = time
             if cur_time - self._loading_time_of_last_frame >= self._loading_time_between_frames:
                 self.needs_drawing()

@@ -1,6 +1,7 @@
 import curses
 import math
 import time
+import logging
 
 from tinywin import core, helpers
 
