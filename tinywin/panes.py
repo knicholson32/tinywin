@@ -708,6 +708,7 @@ class Screen_Pane(core.Pane):
         FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
         logging.basicConfig(format=FORMAT, filename='tinywin.log', level=logging.DEBUG)
         logging.info('Started logging session')
+        logging.info(f'{curses.longname()} {curses.termname()}')
 
 
         self._stdscr = stdscr
