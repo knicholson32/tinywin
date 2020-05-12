@@ -7,6 +7,21 @@ init-dev:
 test:
 	py.test tests
 
+v-build:
+	bumpversion build --allow-dirty; cat VERSION
+
+v-patch:
+	bumpversion patch --allow-dirty; cat VERSION
+
+v-minor:
+	bumpversion minor --allow-dirty; cat VERSION
+
+v-major:
+	bumpversion major --allow-dirty; cat VERSION
+
+v-release:
+	bumpversion --tag release --allow-dirty; cat VERSION
+
 clean:
 	rm -rf ./build
 	rm -rf ./dist
