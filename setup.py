@@ -3,7 +3,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 setuptools.setup(
     name='tinywin',
-    version='0.2.2',
+    version='0.2.3',
     scripts=[],
     author="Keenan Nicholson",
     author_email="",
